@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 17 (all four "needs your nod" follow-ups closed)
+**Last updated:** 2026-04-19 · **Latest run:** increment 18 (`majority_trend_bars` floor recalibration study)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr17.pdf)** — same headline findings, phone-readable.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr18.pdf)** — phone-readable headline.
 
 ## TL;DR
 
@@ -10,7 +10,24 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 17) — synthetic-bank caveat CONFIRMED on real data; recommendations REVERSED
+## Most recent finding (incr 18) — `majority_trend_bars` is gated by the **40% majority floor**, not the body-ratio threshold
+
+Took the incr-17 finding that `majority_trend_bars` was constant 0 on real data and ran the recalibration study on **800 RTH 5-min equity sessions across 387 symbols** (the full `cache/databento/` parquet store). Two-axis sweep: body-ratio threshold {0.30…0.60} × majority floor {0.20…0.50}.
+
+![Floor sweep](figures/majority_trend_bars_floor_sweep.png)
+
+**Headline numbers:**
+- At production thresholds (body=0.50, **floor=0.40**): classifier fires in **1 of 800 sessions** (0.12%). On that single fire, the vote was **wrong**.
+- Lowering the floor to **0.25**: fire rate **9.75%** (78 sessions), directional accuracy **~90%** vs realised open → close session move.
+- Decomposed by side: up-pred **92.2%** (vs 66% base rate), down-pred **87.0%** (vs 34% base rate). Both sides beat their base rate by **+20 to +25 pp**.
+- **Body-ratio threshold sweep is not the answer.** Even at body=0.30, fire rate is 1.9%. The floor was the lever all along.
+- Per-bar |body|/range distribution: median **0.558**, IQR [0.388, 0.730]. **55% of real bars** already exceed body > 0.50 — strong-body bars are common; the score's gate is the cross-side majority requirement.
+
+**Why production goes silent:** ~50% of bars are bull, ~50% bear, ~55% have body > 0.50. Intersection (strong-body bars in *one direction*) ≈ **25%** of bars per session. Production floor of 40% sits well above that. The 1/800 fire rate is exactly what the math predicts.
+
+**Recommendation (needs your nod):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py` and have `_score_majority_trend_bars` use it. Body-ratio threshold stays at 0.50. Replay-equivalence tests will need re-baselining.
+
+## Previous finding (incr 17) — synthetic-bank caveat CONFIRMED on real data; recommendations REVERSED
 
 Re-ran the incr-16 redundancy study on **real ES.c.0 5-min bars** from the cache (6 sessions, 593 bar prefixes). Side-by-side comparison vs the synthetic-fixture bank:
 
@@ -21,8 +38,6 @@ Re-ran the incr-16 redundancy study on **real ES.c.0 5-min bars** from the cache
 - `trending_everything ↔ htf_alignment`: synthetic +0.995 → **real ~0**. Pure polarized-fixture artifact.
 - Mean uniqueness across 12 contributors: real **0.148** vs synthetic **0.782** — real shows **~5× more independence**.
 - `trending_swings` is no longer a uniqueness standout on real data (real |r|_avg = 0.138, middle of pack).
-
-**New issue surfaced:** `majority_trend_bars` is **constant 0** across all 593 cached real bars — fires on zero of them. Threshold likely too strict for real overnight ES futures. Either drop it (neutral on hit rate) or recalibrate.
 
 ## Weighting hit-rate study — equal weighting stays
 
@@ -58,15 +73,19 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
-2. **Investigate `majority_trend_bars` constant-0 on real data.** Threshold recalibration vs drop. Drop is the smaller-blast-radius option but masks the underlying issue.
+1. **PRIMARY (this run):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50. Re-baseline `MajorityTrendBarsReplayEquivalence` tests under the new floor. Re-run the incr-17 redundancy study after the change to remeasure correlation with `bpa_trend_bar_density`.
+2. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
 3. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
-4. **Larger real-data sample.** Six overnight ES sessions is thin. Cache more dates / add RTH 5-min bars before drawing strong conclusions about weighting.
+4. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
 
-## All figures (12)
+## All figures (16)
 
-- [contributor_agreement_real.png](figures/contributor_agreement_real.png) — incr 17 real-data validation heatmap + side-by-side uniqueness *(NEW)*
-- [trend_state_weighting_hitrate.png](figures/trend_state_weighting_hitrate.png) — incr 17 weighting variant hit rates *(NEW)*
+- [majority_trend_bars_floor_sweep.png](figures/majority_trend_bars_floor_sweep.png) — incr 18 majority-floor sensitivity + directional accuracy *(NEW)*
+- [majority_trend_bars_body_ratio_distribution.png](figures/majority_trend_bars_body_ratio_distribution.png) — incr 18 per-bar body-ratio histogram + CDF *(NEW)*
+- [majority_trend_bars_threshold_sensitivity.png](figures/majority_trend_bars_threshold_sensitivity.png) — incr 18 body-ratio sweep (proves threshold isn't the lever) *(NEW)*
+- [majority_trend_bars_session_scores.png](figures/majority_trend_bars_session_scores.png) — incr 18 per-threshold session score buckets *(NEW)*
+- [contributor_agreement_real.png](figures/contributor_agreement_real.png) — incr 17 real-data validation heatmap + side-by-side uniqueness
+- [trend_state_weighting_hitrate.png](figures/trend_state_weighting_hitrate.png) — incr 17 weighting variant hit rates
 - [contributor_agreement.png](figures/contributor_agreement.png) — incr 16 synthetic redundancy heatmap (now known to be inflated)
 - [contributor_matrix.png](figures/contributor_matrix.png) — 12 × 5 control panel
 - [blind_spot_count.png](figures/blind_spot_count.png) — firing vs blind per fixture
@@ -80,7 +99,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr17-followups.md](notes/trend-contributor-findings-2026-04-19-incr17-followups.md) — most recent run, all 4 follow-ups closed
+- [trend-contributor-findings-2026-04-19-incr18-majority-floor.md](notes/trend-contributor-findings-2026-04-19-incr18-majority-floor.md) — most recent run, majority-floor recalibration study
+- [trend-contributor-findings-2026-04-19-incr17-followups.md](notes/trend-contributor-findings-2026-04-19-incr17-followups.md) — incr 17, all 4 follow-ups closed
 - [trend-contributor-findings-2026-04-19-incr16-redundancy.md](notes/trend-contributor-findings-2026-04-19-incr16-redundancy.md) — synthetic redundancy study (largely overturned by incr 17)
 - [trend-contributor-findings-2026-04-19-incr15-capstone.md](notes/trend-contributor-findings-2026-04-19-incr15-capstone.md) — read first if cold
 - [trend-classification-inventory.md](notes/trend-classification-inventory.md) — original 13-classifier inventory
@@ -95,6 +115,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 18** (2026-04-19) — `majority_trend_bars` floor recalibration study on 800 RTH 5-min equity sessions across 387 symbols. Floor 0.40 → 1/800 fires. Floor 0.25 → 78/800 fires with 90% directional accuracy. Body-ratio threshold sweep proved it's NOT the lever. Recommendation: introduce `MAJORITY_TREND_BAR_FLOOR = 0.25`. **Read-only — no production change.**
 - **incr 17** (2026-04-19) — all four "needs your nod" follow-ups closed. Real-data redundancy validation overturns most incr-16 conclusions. `trend_state` wired into live runner + dashboard payload (additive). Weighting study confirms equal weighting stays. New figures + PDF. **602 tests / 905 subtests still green.**
 - **incr 16** (2026-04-19) — empirical contributor redundancy study (synthetic). New `contributor_agreement.png` + first PDF. Pure addition, zero production code change. *Largely overturned by incr 17 real-data validation.*
 - **incr 15** (2026-04-19) — capstone. `htf_alignment` wired as 12th contributor. Inventory complete.
