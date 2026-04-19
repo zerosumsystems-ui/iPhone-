@@ -32,17 +32,53 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 20) — `always_in` is under-performing the baseline; W=10, K=2 strictly dominates production
+## Most recent finding (incr 20) — one of the 12 judges is broken; a simple knob change fixes it
 
-> 🔍 **In plain English.** Incr 19 found one of our 12 judges (`always_in`) was surprisingly weak — right only about **58% of the time when it spoke**, which is *worse* than just guessing "up" every day on this sample. We suspected its two knobs were set wrong: it only looks at the last **5 bars** and needs at least **2 strong bars in a row** to call a direction.
->
-> So this run swept both knobs — **5 window lengths × 4 consecutive-bar requirements = 20 settings** — on the same 800 real sessions.
->
-> The answer came back clean: **lengthening the window from 5 to 10 bars fixes the problem.** At the longer window, the judge speaks up on **52% of sessions** (instead of 36%) AND is right **67% of the time** (instead of 58%). Both dimensions improve — there's no trade-off.
->
-> We're NOT touching production yet — that needs Will's nod. But the evidence is unambiguous: the production setting is noise, and there's a strictly better cell in the grid.
+### The whole story in a picture
 
-Same 800 RTH 5-min equity sessions / 387 symbols as incr 18 and 19. Followed up on incr 19's conjecture that the `ALWAYS_IN_WINDOW = 5` is too short. Swept `ALWAYS_IN_WINDOW ∈ {3, 5, 7, 10, 15}` × `DIRECTION_MIN_CONSEC ∈ {1, 2, 3, 4}` on the exact same session bank.
+![Old vs new setting](figures/always_in_layman_before_after.png)
+
+### The whole story in two sentences
+
+One of our 12 trend judges (`always_in`) was making things **worse**, not better — on 800 real trading days it gave an opinion 36% of the time and was right 58% of the time, which is **worse than just guessing "UP" every day** (that baseline is 66%). Lengthening one of its knobs from "look at the last 5 bars" to "look at the last 10 bars" fixes it — now it gives an opinion on **52%** of days and is right **67%** of the time. Both numbers improve; there's no trade-off.
+
+### The "is it even worth listening to?" picture
+
+![Baseline comparison](figures/always_in_layman_baseline_diagram.png)
+
+Three bars. The grey bar is the dumb strategy: every morning, predict "up." On this sample that's right 66% of the time. The red bar is the judge at its current setting — **below** the grey bar, meaning the judge is *worse* than the dumb strategy. The green bar is the judge at the proposed new setting — **above** the grey bar, meaning it's actually adding real information.
+
+### What we did — no jargon
+
+Our "trend reading" is decided by a panel of 12 judges. Each judge has a couple of knobs that control how strict they are. One judge (`always_in`) looks at whether the market has been moving in one direction for a few bars in a row. Two knobs control it:
+
+- **"How many bars to look at"** — today it's set to 5.
+- **"How many bars in a row must agree"** — today it's set to 2.
+
+We tested every combination of 5 window lengths (3, 5, 7, 10, 15 bars) × 4 "in-a-row" values (1, 2, 3, 4) = **20 settings**, on **800 real trading days across 387 US stocks**. For each setting we asked two simple questions:
+1. How often does the judge actually give an opinion? (If it always shuts up, it's useless.)
+2. When the judge does give an opinion, how often is it right vs what the market actually did?
+
+### Result
+
+The window length matters. The "in-a-row" knob doesn't. At the current 5-bar window, the judge can't see enough of the day to call it correctly. At 10 bars, it catches the real direction cleanly.
+
+![How many days does the judge speak](figures/always_in_layman_speaks_counts.png)
+
+### What I'm recommending (still needs your nod)
+
+Change one number in the code: the bar-count window from **5 → 10**. Don't touch the "in-a-row" knob. This is a read-only research pass — the number hasn't been changed, per the rule that thresholds need your explicit nod.
+
+### Caveat I have to name
+
+"Right" here means "the sign of the judge's opinion matches which way the day actually closed vs where it opened." A judge that speaks LATE in the day has the easier job of agreeing with what already happened. So this is **fidelity-to-same-day**, not **predicts-the-future**. The eventual question — "does this judge actually help the scanner make money?" — still needs the Pattern Lab win-rate database (still empty; still blocking).
+
+### For the engineers: the 20-cell grid
+
+<details>
+<summary>Click to expand the technical view</summary>
+
+Same 800 RTH 5-min equity sessions / 387 symbols as incr 18 and 19. Swept `ALWAYS_IN_WINDOW ∈ {3, 5, 7, 10, 15}` × `DIRECTION_MIN_CONSEC ∈ {1, 2, 3, 4}` on the exact same session bank.
 
 ![Always-in sweep heatmap](figures/always_in_sweep_heatmap.png)
 
@@ -55,9 +91,9 @@ Same 800 RTH 5-min equity sessions / 387 symbols as incr 18 and 19. Followed up 
 
 ![Pareto view](figures/always_in_sweep_pareto.png)
 
-**Recommendation (still needs your nod):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. Re-run incr 19 to confirm `always_in` exits the below-baseline zone. `DIRECTION_MIN_CONSEC` stays at 2.
+**Recommendation:** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. `DIRECTION_MIN_CONSEC` stays at 2.
 
-**Important caveat carries over from incr 19.** "Directional accuracy" is same-session open → close labelling fidelity, not forward WR. Pattern Lab WR-driven weighting (still blocked on DB backfill) remains the final arbiter for a production change.
+</details>
 
 ## Previous finding (incr 19) — 12-contributor degeneracy audit · 2 silent-fail · sharp directional-accuracy hierarchy
 
@@ -192,9 +228,12 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 7. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
 8. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
 
-## All figures (22)
+## All figures (25)
 
-- [always_in_sweep_heatmap.png](figures/always_in_sweep_heatmap.png) — incr 20 W × K grid: fire / accuracy / median |score| *(NEW)*
+- [always_in_layman_before_after.png](figures/always_in_layman_before_after.png) — incr 20 plain-English before/after on the two questions that matter *(NEW)*
+- [always_in_layman_baseline_diagram.png](figures/always_in_layman_baseline_diagram.png) — incr 20 is-it-beating-the-dumb-strategy view *(NEW)*
+- [always_in_layman_speaks_counts.png](figures/always_in_layman_speaks_counts.png) — incr 20 session-count stacked bar (speaks vs silent) *(NEW)*
+- [always_in_sweep_heatmap.png](figures/always_in_sweep_heatmap.png) — incr 20 W × K grid: fire / accuracy / median |score|
 - [always_in_sweep_pareto.png](figures/always_in_sweep_pareto.png) — incr 20 fire vs accuracy scatter with always-up baseline overlay *(NEW)*
 - [always_in_sweep_prod_vs_top.png](figures/always_in_sweep_prod_vs_top.png) — incr 20 production vs top-accuracy candidates (fire ≥ 15%) *(NEW)*
 - [contributor_degeneracy_fire_rate.png](figures/contributor_degeneracy_fire_rate.png) — incr 19 per-contributor fire rate ranking
