@@ -4,6 +4,8 @@
 
 📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr19.pdf)** — phone-readable headline.
 
+> 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
+
 ---
 
 ## 👋 What this project is — for everyone
