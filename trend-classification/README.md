@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 20 (`always_in` two-axis sweep — production is under-performing the baseline)
+**Last updated:** 2026-04-19 · **Latest run:** increment 21 (`day_type` TFO-gate sweep — 100 % precision detector, coverage is the only lever)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr20.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr21.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,66 +32,85 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 20) — one of the 12 judges is broken; a simple knob change fixes it
+## Most recent finding (incr 21) — one of the 12 judges is a **100 % precision detector**; loosen him to hear him more often
 
 ### The whole story in a picture
 
-![Old vs new setting](figures/always_in_layman_before_after.png)
+![OE × TPM grid](figures/day_type_sweep_heatmap.png)
 
 ### The whole story in two sentences
 
-One of our 12 trend judges (`always_in`) was making things **worse**, not better — on 800 real trading days it gave an opinion 36% of the time and was right 58% of the time, which is **worse than just guessing "UP" every day** (that baseline is 66%). Lengthening one of its knobs from "look at the last 5 bars" to "look at the last 10 bars" fixes it — now it gives an opinion on **52%** of days and is right **67%** of the time. Both numbers improve; there's no trade-off.
+Another of our 12 judges (`day_type`'s "trend-from-open" read) is the **opposite** of last week's broken `always_in` judge. He almost never speaks — just **12 %** of trading days at the production setting — **but when he does, he's right 100 % of the time** across 95 fires, zero sign mismatches. We swept his two strictness knobs 20 different ways on 800 real trading days; **every single setting** was at 100 % accuracy. The only lever worth tuning is how often we let him speak, and loosening the "how close to the low must the open be" knob from 0.15 → 0.25 gains us **+3 pp more speaking days for free**.
 
-### The "is it even worth listening to?" picture
+### The "is this even real?" check
 
-![Baseline comparison](figures/always_in_layman_baseline_diagram.png)
+A 100 % directional-accuracy number sounds too clean — I verified it myself: 95 fires at production, all correct; 127 fires at the loosest tested cell, also all correct. The math is actually honest. This judge requires three things simultaneously:
 
-Three bars. The grey bar is the dumb strategy: every morning, predict "up." On this sample that's right 66% of the time. The red bar is the judge at its current setting — **below** the grey bar, meaning the judge is *worse* than the dumb strategy. The green bar is the judge at the proposed new setting — **above** the grey bar, meaning it's actually adding real information.
+1. the opening price has to be in the **bottom 15 % of the day's range** (or top 15 % for a bear call),
+2. **over half the candles** in the session must lean in that direction, and
+3. **no deep pullback** (max retracement < 30 % of the day's range).
 
-### What we did — no jargon
+A session that checks all three boxes is structurally forced to close near where it opened or better — there's no way to open near the low, have no deep pullback, have majority-bull candles, AND still close below the open. The gate's design works.
 
-Our "trend reading" is decided by a panel of 12 judges. Each judge has a couple of knobs that control how strict they are. One judge (`always_in`) looks at whether the market has been moving in one direction for a few bars in a row. Two knobs control it:
+### The contrast with last week
 
-- **"How many bars to look at"** — today it's set to 5.
-- **"How many bars in a row must agree"** — today it's set to 2.
+| Judge | Fires on | Accuracy when fires | Baseline | Verdict |
+|---|---|---|---|---|
+| `always_in` (incr 20) | 36 % of days | 58 % | 66 % always-up | **Below noise** — loosen the window |
+| `day_type` TFO (this run) | 12 % of days | **100 %** | 66 % always-up | **Far above noise** — loosen the open gate |
 
-We tested every combination of 5 window lengths (3, 5, 7, 10, 15 bars) × 4 "in-a-row" values (1, 2, 3, 4) = **20 settings**, on **800 real trading days across 387 US stocks**. For each setting we asked two simple questions:
-1. How often does the judge actually give an opinion? (If it always shuts up, it's useless.)
-2. When the judge does give an opinion, how often is it right vs what the market actually did?
-
-### Result
-
-The window length matters. The "in-a-row" knob doesn't. At the current 5-bar window, the judge can't see enough of the day to call it correctly. At 10 bars, it catches the real direction cleanly.
-
-![How many days does the judge speak](figures/always_in_layman_speaks_counts.png)
+Last week's judge was too talkative and weakly informed. This week's is the opposite — rare but mathematically reliable. Both need knob changes, but in opposite directions.
 
 ### What I'm recommending (still needs your nod)
 
-Change one number in the code: the bar-count window from **5 → 10**. Don't touch the "in-a-row" knob. This is a read-only research pass — the number hasn't been changed, per the rule that thresholds need your explicit nod.
+Change the open-extreme gate from `open_position < 0.15` to `open_position < 0.25` (and mirror 0.85 → 0.75 for the bear path) in `aiedge/context/daytype.py`. Gains +3 pp speaking days with zero accuracy cost. Small, safe, lowest-risk of all the pending items.
 
-### Caveat I have to name
+### Caveat I have to name (same as last week)
 
-"Right" here means "the sign of the judge's opinion matches which way the day actually closed vs where it opened." A judge that speaks LATE in the day has the easier job of agreeing with what already happened. So this is **fidelity-to-same-day**, not **predicts-the-future**. The eventual question — "does this judge actually help the scanner make money?" — still needs the Pattern Lab win-rate database (still empty; still blocking).
+"Right" here means "the sign of the judge's opinion matches which way the day actually closed vs where it opened." Same-session fidelity, not **predicts-the-future**. Pattern Lab WR-driven confirmation on forward outcomes is the gold standard — and it's still blocked on the empty Pattern Lab DB.
 
 ### For the engineers: the 20-cell grid
 
 <details>
 <summary>Click to expand the technical view</summary>
 
-Same 800 RTH 5-min equity sessions / 387 symbols as incr 18 and 19. Swept `ALWAYS_IN_WINDOW ∈ {3, 5, 7, 10, 15}` × `DIRECTION_MIN_CONSEC ∈ {1, 2, 3, 4}` on the exact same session bank.
-
-![Always-in sweep heatmap](figures/always_in_sweep_heatmap.png)
+Same 800 RTH 5-min equity sessions / 387 symbols as incr 18-20. Swept `OPEN_EXTREME_THRESHOLD ∈ {0.10, 0.15, 0.20, 0.25, 0.30}` × `TREND_PCT_MIN ∈ {0.40, 0.45, 0.50, 0.55}` — the two primary knobs of the `trend_from_open` clause in `_classify_day_type`. The third gate (`max_pullback_of_range < 0.30`) held constant.
 
 **Headline numbers:**
-- **Production (W=5, K=2)** fires on **36.0%** of sessions at **57.6%** directional accuracy. Below the **66.0%** always-predict-up baseline on this sample by **~8 pp** — actively below noise.
-- **W=10, K=2** strictly dominates — fires on **51.9%** of sessions (+15.9 pp absolute) at **66.9%** directional accuracy (+9.3 pp). Above the baseline. Softer score (median |s| 0.20 vs 0.40 in production).
-- **The binding knob is the window, not the min-consec.** Holding K=2: `57.6 → 63.2 → 66.9 → 64.7` across W=5/7/10/15. Monotonic-up to W=10 then a mild drop. Stricter K only tanks fire rate.
-- **K=1 is noise.** Lowering to any-single-strong-bar fires often but accuracy hovers at 56-61%.
-- **High-conviction corner:** W=15, K=1 hits **82.9% accuracy** on **5.5%** of sessions (44 fires). Too rare for primary signal; documented as a future overlay candidate.
+- **Production cell (OE=0.15, TPM=0.50)** fires on **11.9 %** of sessions (95 fires) at **100.0 %** directional accuracy. Zero sign mismatches.
+- **Loosest cell (OE=0.30, TPM=0.40)** fires on **15.9 %** of sessions (127 fires) at **100.0 %** directional accuracy. Zero sign mismatches. +4.0 pp coverage for free.
+- **OE is the binding knob.** Holding TPM=0.50: fire rate 9.6 → 11.9 → 13.5 → 14.4 → 14.9 % as OE moves 0.10 → 0.30. Monotonic.
+- **TPM is secondary.** Holding OE=0.15: fire rate 12.8 → 12.8 → 11.9 → 9.1 % as TPM moves 0.40 → 0.55. Only TPM=0.55 meaningfully shrinks coverage.
 
+![Pareto view](figures/day_type_sweep_pareto.png)
+
+Every cell sits at the top of the Pareto chart (100 % accuracy). Every setting crushes the 65.9 % always-up baseline. The tradeoff here isn't accuracy vs coverage — there is no tradeoff. It's coverage vs strictness.
+
+![Prod vs top cells](figures/day_type_sweep_prod_vs_top.png)
+
+Since every cell ties at 100 %, the "top" ranking collapses to fire rate. +3-4 pp coverage is available with a single knob loosening.
+
+**Recommendation:** loosen `OPEN_EXTREME_THRESHOLD: 0.15 → 0.25` in the `trend_from_open` clause of `aiedge/context/daytype.py::_classify_day_type`. Currently a magic literal; a small refactor to expose it as a module-level constant would help. `TREND_PCT_MIN` stays at 0.50. `max_pullback_of_range` gate stays at 0.30.
+
+**Open work surfaced:** the 19.6 % day_type fire rate from incr 19 is NOT explained by TFO alone (12 %). The remaining 7-8 pp come from `spike_and_channel`, `trending_tr`, and the `trading_range → trend_from_open` chop-ratio override branches. A future sweep should parameterise the full 6-branch classifier.
+
+</details>
+
+## Previous finding (incr 20) — one of the 12 judges is broken; a simple knob change fixes it
+
+<details>
+<summary>Expand — `always_in` was below baseline; W=5 → W=10 fixes it</summary>
+
+![Old vs new setting](figures/always_in_layman_before_after.png)
+
+One of our 12 trend judges (`always_in`) was making things **worse**, not better — on 800 real trading days it gave an opinion 36% of the time and was right 58% of the time, which is **worse than just guessing "UP" every day** (that baseline is 66%). Lengthening one of its knobs from "look at the last 5 bars" to "look at the last 10 bars" fixes it — now it gives an opinion on **52%** of days and is right **67%** of the time. Both numbers improve; there's no trade-off.
+
+![Baseline comparison](figures/always_in_layman_baseline_diagram.png)
+![How many days does the judge speak](figures/always_in_layman_speaks_counts.png)
+![Always-in sweep heatmap](figures/always_in_sweep_heatmap.png)
 ![Pareto view](figures/always_in_sweep_pareto.png)
 
-**Recommendation:** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. `DIRECTION_MIN_CONSEC` stays at 2.
+**Recommendation:** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. `DIRECTION_MIN_CONSEC` stays at 2.
 
 </details>
 
@@ -219,18 +238,22 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **PRIMARY (new, incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. Re-run incr 19 to confirm `always_in` exits the below-baseline zone.
-2. **DOCUMENTATION (zero blast radius, incr 19):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`. Prevents the same study trap that hit incr 19.
-3. **STILL PENDING (incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50. Re-baseline `MajorityTrendBarsReplayEquivalence` tests under the new floor. Re-run incr 19 to confirm it exits the silent-fail zone.
-4. **NEXT STUDY (incr 19 surfaced this):** incr-18-style sweep on `_DAY_TYPE_MAGNITUDE` or the strict `trend_pct > 0.50` gate — `day_type` only fires on 19.6% of sessions despite being a structural read every session has by definition.
-5. **NEXT STUDY (incr 20 flagged):** rebalanced 400-up / 400-down sample across a longer window so the "beats baseline" claim isn't dependent on the 9-day up-biased slice.
-6. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
-7. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
-8. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
+1. **PRIMARY (new, incr 21):** loosen `OPEN_EXTREME_THRESHOLD: 0.15 → 0.25` in `aiedge/context/daytype.py::_classify_day_type` (currently a magic literal). Gains +3 pp TFO fire rate with zero accuracy cost. Small refactor to expose the value as a module-level constant. Lowest-risk of the pending items.
+2. **STILL PENDING (incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. Re-run incr 19 to confirm `always_in` exits the below-baseline zone.
+3. **DOCUMENTATION (zero blast radius, incr 19):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`. Prevents the same study trap that hit incr 19.
+4. **STILL PENDING (incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50. Re-baseline `MajorityTrendBarsReplayEquivalence` tests under the new floor. Re-run incr 19 to confirm it exits the silent-fail zone.
+5. **NEXT STUDY (incr 21 surfaced this):** full `day_type` sweep including the `spike_and_channel`, `trending_tr`, and `trading_range` branches — the TFO clause alone fires at 12 %, so 7-8 pp of the 19.6 % total day_type fire rate come from those other paths. Requires parameterising the full 6-branch classifier.
+6. **NEXT STUDY (incr 20 flagged):** rebalanced 400-up / 400-down sample across a longer window so the "beats baseline" claim isn't dependent on the 9-day up-biased slice.
+7. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
+8. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
+9. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
 
-## All figures (25)
+## All figures (28)
 
-- [always_in_layman_before_after.png](figures/always_in_layman_before_after.png) — incr 20 plain-English before/after on the two questions that matter *(NEW)*
+- [day_type_sweep_heatmap.png](figures/day_type_sweep_heatmap.png) — incr 21 OE × TPM grid: fire / accuracy / median |score| *(NEW)*
+- [day_type_sweep_pareto.png](figures/day_type_sweep_pareto.png) — incr 21 fire vs accuracy scatter; every cell at 100 % accuracy *(NEW)*
+- [day_type_sweep_prod_vs_top.png](figures/day_type_sweep_prod_vs_top.png) — incr 21 production vs top fire-rate cells (fire ≥ 10 %) *(NEW)*
+- [always_in_layman_before_after.png](figures/always_in_layman_before_after.png) — incr 20 plain-English before/after on the two questions that matter
 - [always_in_layman_baseline_diagram.png](figures/always_in_layman_baseline_diagram.png) — incr 20 is-it-beating-the-dumb-strategy view *(NEW)*
 - [always_in_layman_speaks_counts.png](figures/always_in_layman_speaks_counts.png) — incr 20 session-count stacked bar (speaks vs silent) *(NEW)*
 - [always_in_sweep_heatmap.png](figures/always_in_sweep_heatmap.png) — incr 20 W × K grid: fire / accuracy / median |score|
@@ -258,7 +281,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md](notes/trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md) — most recent run, `always_in` two-axis sweep
+- [trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md](notes/trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md) — most recent run, `day_type` TFO-gate sweep
+- [trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md](notes/trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md) — `always_in` two-axis sweep
 - [trend-contributor-findings-2026-04-19-incr19-degeneracy.md](notes/trend-contributor-findings-2026-04-19-incr19-degeneracy.md) — 12-contributor degeneracy + accuracy hierarchy
 - [trend-contributor-findings-2026-04-19-incr18-majority-floor.md](notes/trend-contributor-findings-2026-04-19-incr18-majority-floor.md) — majority-floor recalibration study
 - [trend-contributor-findings-2026-04-19-incr17-followups.md](notes/trend-contributor-findings-2026-04-19-incr17-followups.md) — incr 17, all 4 follow-ups closed
@@ -276,6 +300,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 21** (2026-04-19) — `day_type` TFO-gate sweep (OPEN_EXTREME × TREND_PCT_MIN, 20 cells) on the same 800 RTH 5-min equity sessions / 387 symbols. TFO gate is a **100 % precision detector** — zero sign mismatches in every cell, including the loosest (127 fires at OE=0.30, TPM=0.40). Coverage is the only lever worth tuning; OE is binding (fire rate 9.6 → 14.9 % as OE loosens 0.10 → 0.30). Recommendation: loosen OE 0.15 → 0.25 for +3 pp coverage. **Read-only — no production change.**
 - **incr 20** (2026-04-19) — `always_in` two-axis sweep (ALWAYS_IN_WINDOW × DIRECTION_MIN_CONSEC) over 800 RTH 5-min equity sessions. Production (W=5, K=2) fires 36% / 57.6% accuracy — below the 66% always-up baseline. W=10, K=2 strictly dominates: 52% / 66.9%. Binding knob is W, not K. Recommendation: raise window to 10. **Read-only — no production change.**
 - **incr 19** (2026-04-19) — 12-contributor degeneracy + directional-accuracy hierarchy on the same 800 RTH 5-min equity sessions / 387 symbols as incr 18. Two silent-fail contributors confirmed: `htf_alignment` (0/800, dormant by design) and `majority_trend_bars` (1/800, confirms incr 18). Sharp tier list when contributors fire: A `trending_everything` (97.9%), `session_shape` (96.3%) → D `always_in` (57.6%) → F silent-fail. New tools, 3 figures, recommended next sweeps for `always_in` and `day_type`. **Read-only — no production change.**
 - **incr 18** (2026-04-19) — `majority_trend_bars` floor recalibration study on 800 RTH 5-min equity sessions across 387 symbols. Floor 0.40 → 1/800 fires. Floor 0.25 → 78/800 fires with 90% directional accuracy. Body-ratio threshold sweep proved it's NOT the lever. Recommendation: introduce `MAJORITY_TREND_BAR_FLOOR = 0.25`. **Read-only — no production change.**
