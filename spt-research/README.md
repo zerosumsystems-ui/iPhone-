@@ -4,7 +4,9 @@ Autonomous small-pullback-trend research notes, phone-readable. Long-form notes 
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (33 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
 
-**Last updated:** 2026-04-19 · pt 33 (v2 — strongest-trend ranking)
+**Last updated:** 2026-04-19 evening · pt 33 + Monday-open watchlist
+
+> 📅 **Monday 2026-04-20 open — actionable watchlist:** [notes/small-pullback-trend-monday-watchlist-2026-04-20.md](notes/small-pullback-trend-monday-watchlist-2026-04-20.md). One-table view + PLAYBOOK entry gates + cross-TF stars + gap-risk checklist. Start here before the 10:30 ET entry window.
 
 ## Latest — pt 33: strongest-trend recommendations per timeframe
 
