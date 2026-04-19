@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 19 (12-contributor degeneracy + directional-accuracy hierarchy)
+**Last updated:** 2026-04-19 · **Latest run:** increment 20 (`always_in` two-axis sweep — production is under-performing the baseline)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr19.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr20.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,7 +32,34 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 19) — 12-contributor degeneracy audit · 2 silent-fail · sharp directional-accuracy hierarchy
+## Most recent finding (incr 20) — `always_in` is under-performing the baseline; W=10, K=2 strictly dominates production
+
+> 🔍 **In plain English.** Incr 19 found one of our 12 judges (`always_in`) was surprisingly weak — right only about **58% of the time when it spoke**, which is *worse* than just guessing "up" every day on this sample. We suspected its two knobs were set wrong: it only looks at the last **5 bars** and needs at least **2 strong bars in a row** to call a direction.
+>
+> So this run swept both knobs — **5 window lengths × 4 consecutive-bar requirements = 20 settings** — on the same 800 real sessions.
+>
+> The answer came back clean: **lengthening the window from 5 to 10 bars fixes the problem.** At the longer window, the judge speaks up on **52% of sessions** (instead of 36%) AND is right **67% of the time** (instead of 58%). Both dimensions improve — there's no trade-off.
+>
+> We're NOT touching production yet — that needs Will's nod. But the evidence is unambiguous: the production setting is noise, and there's a strictly better cell in the grid.
+
+Same 800 RTH 5-min equity sessions / 387 symbols as incr 18 and 19. Followed up on incr 19's conjecture that the `ALWAYS_IN_WINDOW = 5` is too short. Swept `ALWAYS_IN_WINDOW ∈ {3, 5, 7, 10, 15}` × `DIRECTION_MIN_CONSEC ∈ {1, 2, 3, 4}` on the exact same session bank.
+
+![Always-in sweep heatmap](figures/always_in_sweep_heatmap.png)
+
+**Headline numbers:**
+- **Production (W=5, K=2)** fires on **36.0%** of sessions at **57.6%** directional accuracy. Below the **66.0%** always-predict-up baseline on this sample by **~8 pp** — actively below noise.
+- **W=10, K=2** strictly dominates — fires on **51.9%** of sessions (+15.9 pp absolute) at **66.9%** directional accuracy (+9.3 pp). Above the baseline. Softer score (median |s| 0.20 vs 0.40 in production).
+- **The binding knob is the window, not the min-consec.** Holding K=2: `57.6 → 63.2 → 66.9 → 64.7` across W=5/7/10/15. Monotonic-up to W=10 then a mild drop. Stricter K only tanks fire rate.
+- **K=1 is noise.** Lowering to any-single-strong-bar fires often but accuracy hovers at 56-61%.
+- **High-conviction corner:** W=15, K=1 hits **82.9% accuracy** on **5.5%** of sessions (44 fires). Too rare for primary signal; documented as a future overlay candidate.
+
+![Pareto view](figures/always_in_sweep_pareto.png)
+
+**Recommendation (still needs your nod):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. Re-run incr 19 to confirm `always_in` exits the below-baseline zone. `DIRECTION_MIN_CONSEC` stays at 2.
+
+**Important caveat carries over from incr 19.** "Directional accuracy" is same-session open → close labelling fidelity, not forward WR. Pattern Lab WR-driven weighting (still blocked on DB backfill) remains the final arbiter for a production change.
+
+## Previous finding (incr 19) — 12-contributor degeneracy audit · 2 silent-fail · sharp directional-accuracy hierarchy
 
 > 🔍 **In plain English.** Imagine the trend reading is decided by a panel of **12 judges**, each looking at the same stock from a different angle. We sat them all down with **800 real trading sessions** (across 387 different US stocks) and graded them.
 >
@@ -156,17 +183,21 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **DOCUMENTATION (zero blast radius, surfaced this run):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`. Prevents the same study trap that hit this run.
-2. **PRIMARY (still pending from incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50. Re-baseline `MajorityTrendBarsReplayEquivalence` tests under the new floor. Re-run incr 19 to confirm it exits the silent-fail zone.
-3. **NEXT STUDY (incr 19 surfaced this):** incr-18-style two-axis sweep on `always_in` (`ALWAYS_IN_WINDOW`, `DIRECTION_MIN_CONSEC`) — its 57.6% directional accuracy on 36% of sessions UNDERPERFORMS the always-predict-up baseline. Same family-pattern as `majority_trend_bars`.
+1. **PRIMARY (new, incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests. Re-run incr 19 to confirm `always_in` exits the below-baseline zone.
+2. **DOCUMENTATION (zero blast radius, incr 19):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`. Prevents the same study trap that hit incr 19.
+3. **STILL PENDING (incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50. Re-baseline `MajorityTrendBarsReplayEquivalence` tests under the new floor. Re-run incr 19 to confirm it exits the silent-fail zone.
 4. **NEXT STUDY (incr 19 surfaced this):** incr-18-style sweep on `_DAY_TYPE_MAGNITUDE` or the strict `trend_pct > 0.50` gate — `day_type` only fires on 19.6% of sessions despite being a structural read every session has by definition.
-5. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
-6. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
-7. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
+5. **NEXT STUDY (incr 20 flagged):** rebalanced 400-up / 400-down sample across a longer window so the "beats baseline" claim isn't dependent on the 9-day up-biased slice.
+6. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
+7. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
+8. **Multi-month sample.** 800 sessions across 9 trading dates surfaced this; multi-month would let the same study run on overnight ES futures too.
 
-## All figures (19)
+## All figures (22)
 
-- [contributor_degeneracy_fire_rate.png](figures/contributor_degeneracy_fire_rate.png) — incr 19 per-contributor fire rate ranking *(NEW)*
+- [always_in_sweep_heatmap.png](figures/always_in_sweep_heatmap.png) — incr 20 W × K grid: fire / accuracy / median |score| *(NEW)*
+- [always_in_sweep_pareto.png](figures/always_in_sweep_pareto.png) — incr 20 fire vs accuracy scatter with always-up baseline overlay *(NEW)*
+- [always_in_sweep_prod_vs_top.png](figures/always_in_sweep_prod_vs_top.png) — incr 20 production vs top-accuracy candidates (fire ≥ 15%) *(NEW)*
+- [contributor_degeneracy_fire_rate.png](figures/contributor_degeneracy_fire_rate.png) — incr 19 per-contributor fire rate ranking
 - [contributor_degeneracy_entropy.png](figures/contributor_degeneracy_entropy.png) — incr 19 output Shannon entropy ranking *(NEW)*
 - [contributor_degeneracy_distribution.png](figures/contributor_degeneracy_distribution.png) — incr 19 12-panel signed-score histograms *(NEW)*
 - [majority_trend_bars_floor_sweep.png](figures/majority_trend_bars_floor_sweep.png) — incr 18 majority-floor sensitivity + directional accuracy
@@ -188,7 +219,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr19-degeneracy.md](notes/trend-contributor-findings-2026-04-19-incr19-degeneracy.md) — most recent run, 12-contributor degeneracy + accuracy hierarchy
+- [trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md](notes/trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md) — most recent run, `always_in` two-axis sweep
+- [trend-contributor-findings-2026-04-19-incr19-degeneracy.md](notes/trend-contributor-findings-2026-04-19-incr19-degeneracy.md) — 12-contributor degeneracy + accuracy hierarchy
 - [trend-contributor-findings-2026-04-19-incr18-majority-floor.md](notes/trend-contributor-findings-2026-04-19-incr18-majority-floor.md) — majority-floor recalibration study
 - [trend-contributor-findings-2026-04-19-incr17-followups.md](notes/trend-contributor-findings-2026-04-19-incr17-followups.md) — incr 17, all 4 follow-ups closed
 - [trend-contributor-findings-2026-04-19-incr16-redundancy.md](notes/trend-contributor-findings-2026-04-19-incr16-redundancy.md) — synthetic redundancy study (largely overturned by incr 17)
@@ -205,6 +237,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 20** (2026-04-19) — `always_in` two-axis sweep (ALWAYS_IN_WINDOW × DIRECTION_MIN_CONSEC) over 800 RTH 5-min equity sessions. Production (W=5, K=2) fires 36% / 57.6% accuracy — below the 66% always-up baseline. W=10, K=2 strictly dominates: 52% / 66.9%. Binding knob is W, not K. Recommendation: raise window to 10. **Read-only — no production change.**
 - **incr 19** (2026-04-19) — 12-contributor degeneracy + directional-accuracy hierarchy on the same 800 RTH 5-min equity sessions / 387 symbols as incr 18. Two silent-fail contributors confirmed: `htf_alignment` (0/800, dormant by design) and `majority_trend_bars` (1/800, confirms incr 18). Sharp tier list when contributors fire: A `trending_everything` (97.9%), `session_shape` (96.3%) → D `always_in` (57.6%) → F silent-fail. New tools, 3 figures, recommended next sweeps for `always_in` and `day_type`. **Read-only — no production change.**
 - **incr 18** (2026-04-19) — `majority_trend_bars` floor recalibration study on 800 RTH 5-min equity sessions across 387 symbols. Floor 0.40 → 1/800 fires. Floor 0.25 → 78/800 fires with 90% directional accuracy. Body-ratio threshold sweep proved it's NOT the lever. Recommendation: introduce `MAJORITY_TREND_BAR_FLOOR = 0.25`. **Read-only — no production change.**
 - **incr 17** (2026-04-19) — all four "needs your nod" follow-ups closed. Real-data redundancy validation overturns most incr-16 conclusions. `trend_state` wired into live runner + dashboard payload (additive). Weighting study confirms equal weighting stays. New figures + PDF. **602 tests / 905 subtests still green.**
