@@ -4,90 +4,84 @@ Autonomous small-pullback-trend research notes, phone-readable. Long-form notes 
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (33 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
 
-**Last updated:** 2026-04-19 · pt 33
+**Last updated:** 2026-04-19 · pt 33 (v2 — strongest-trend ranking)
 
-## Latest — pt 33: multi-timeframe SPT candidate scan
+## Latest — pt 33: strongest-trend recommendations per timeframe
 
-**Run:** 2026-04-19 evening, scheduled-task autonomous. First operational (not research) SPT post — takes the 11-rule PLAYBOOK off paper and scans 52 symbols × 5 timeframes for stocks whose tape currently matches the small-pullback-trend signature.
+**Run:** 2026-04-19 evening, scheduled-task autonomous. First operational SPT post — takes the 11-rule PLAYBOOK off paper and scans 52 symbols × 5 timeframes for the biggest, cleanest directional trends right now.
 
-Data: Databento `XNAS.ITCH` through Fri 2026-04-17 cash close. Window-composite score = 0.5·|net_R| + 2.0·closeness-to-extreme + 2.0·pullback-penalty. Timeframe-scaled gates (intraday widens). Grade **A** = strong on all three legs; **B** = inside gate; **C** dropped.
+Data: Databento `XNAS.ITCH` through Fri 2026-04-17 cash close. Windowed composite score = 0.5·|net_R| + 2.0·closeness-to-extreme + 2.0·pullback-penalty. Sanity filter only (|net_R|≥2, closeness≥0.70) — lists ranked by pure strength, not gate-quality.
 
-### Stock recommendations per timeframe
+## 🎯 Top picks by trade horizon
 
-**Daily** (position / swing, weeks)
+| Horizon | Dir | Name | Why |
+|---------|:---:|------|-----|
+| Position (weeks) | 🟢 | **AMD** | +36.9% 20d · closes 97% of range · 0.38 pullback |
+| Intraday swing | 🟢 | **MRK** | Only name on 4 consecutive TFs (60m→5m) all up |
+| Hours | 🟢 | **MRK** +9.84 netR on 30m | Cleanest large-cap 30m trend in the scan |
+| Scalp | 🟢 | **WMT** +18.69 netR on 5m | Strongest single-TF reading in the entire scan |
+| Intraday short | 🔴 | **ADBE** (3-TF short) | Cleanest short across 30m/15m/5m |
+| Position short | 🔴 | **CVX** | Daily −8.9% · closeness 0.83 · energy selloff |
 
-1. **AVGO** · +6.61 netR · pullback 0.39 · close 0.99 · 20d +29.6% · $406.06
-2. **AMD** · +6.65 · 0.38 · 0.97 · +36.9% · $277.25
-3. **AMZN** · +5.94 · 0.37 · 0.91 · +21.1% · $250.70
-4. **BAC** · +5.07 · 0.36 · 0.83 · +13.6% · $53.93
+## 📊 Strongest trends per timeframe
 
-*No short-side daily SPT passes the gate — broad bull.*
+### Daily (weeks)
+**🟢 LONGS:** AVGO (+29.6%) · **AMD (+36.9%)** · AMZN (+21.1%) · BAC (+13.6%) · SPY (+8.8%)
+**🔴 SHORTS:** **CVX (−8.9%)** · COP (−9.0%) · XOM (−8.4%) — **energy is the one weak sector**
 
-**60m** (intraday swing, 1-3 sessions)
+### 60m (1-3 sessions)
+**🟢 LONGS:** **DIA** · DIS · MRK · CAT · HD (broad tape + defensives + industrials)
+**🔴 SHORT:** **NFLX** (−10% with big magnitude — loudest broken single-name)
 
-1. **DIA** · +7.69 netR · pullback 0.41 · close 0.78
-2. **CAT** · +6.64 · 0.43 · 0.82
-3. **SPY** · +5.97 · 0.38 · 0.82
+### 30m (hours)
+**🟢 LONGS:** **MRK +9.84 netR** · DIA · HD · DIS · UNH (defensive rotation dominates)
+**🔴 SHORTS:** **ADBE** · ORCL (software-complex breaking)
 
-*60m is the same run as daily, re-expressed.*
+### 15m (tens of minutes)
+**🟢 LONGS:** **WMT** · MRK · COST · DIS · PFE (defensive + retail)
+**🔴 SHORTS:** **ORCL** · ADBE · CRM · AMZN(!) · GE (AMZN 15m-short vs daily-long = intraday pullback inside bull, don't fade)
 
-**30m** (intraday, hours) — **defensive rotation shows up here**
+### 5m (minutes) — strongest readings in the whole scan
+**🟢 LONGS:** **WMT +18.69 netR** · COST · MRK · UNH · CVX(!)
+**🔴 SHORTS:** **GE −10.42 netR** · CRM · ADBE · ORCL · MU
 
-1. **MRK** · +9.84 netR · 0.48 · 0.96
-2. **DIA** · +9.55 · 0.40 · 0.74
-3. **HD** · +8.93 · 0.43 · 0.83
-4. **DIS** · +7.86 · 0.54 · 0.98
-5. **UNH** · +7.45 · 0.55 · 0.91
+## ⭐ Cross-timeframe stars (signal on ≥ 2 TFs)
 
-**15m** (scalp-to-swing, tens of min) — **software-complex divergence opens here**
+| Symbol | Timeframes | Conviction |
+|--------|-----------|:----------:|
+| **MRK** long | 60m · 30m · 15m · 5m | ★★★★ |
+| **DIS** long | 60m · 30m · 15m | ★★★ |
+| **ORCL** short | 30m · 15m · 5m | ★★★ |
+| **ADBE** short | 30m · 15m · 5m | ★★★ |
+| **HD** long | 60m · 30m | ★★ |
+| **DIA** long | 60m · 30m | ★★ |
+| **UNH** long | 30m · 5m | ★★ |
+| **WMT** long | 15m · 5m | ★★ |
+| **COST** long | 15m · 5m | ★★ |
+| **CRM** short | 15m · 5m | ★★ |
+| **GE** short | 15m · 5m | ★★ |
 
-LONG: WMT (A), MRK, DIS, GOOGL, CAT
-**SHORT: ADBE (A), CRM (A), ORCL**
+## 📖 The tape read in one line
 
-**5m** (scalp, minutes)
+**Broad tape is bull** (AMD/AVGO/AMZN/BAC daily + SPY/QQQ). **Under the hood the bid rotated into defensives** (MRK/DIS/HD/UNH/WMT/COST) **and out of enterprise software + select momentum** (ORCL/ADBE/CRM/GE) in Friday afternoon. **Energy is the one weak broad sector** on the daily (CVX/COP/XOM all −8-9%).
 
-LONG: **WMT (A)**, COST, **MRK (A)**, **UNH (A)**, **GOOGL (A)**
-SHORT: **CRM (A)**, **ADBE (A)**, GE, ORCL, MU
+## ⚠️ Divergence flags (do NOT fade these)
 
-### Cross-timeframe picks (signal appears on ≥ 2 TFs)
+- **AMZN** — daily long, 15m short. Intraday pullback inside bull. Don't short the dip.
+- **CVX** — daily short, 5m long. Counter-trend bounce inside a broken sector. Don't buy the bounce.
 
-| Symbol | Direction | Timeframes | Grade |
-|--------|:---------:|------------|:-----:|
-| **WMT**  | long  | 15m · 5m | A/A |
-| **MRK**  | long  | 30m · 15m · 5m | B/B/A |
-| **CRM**  | short | 15m · 5m | A/A |
-| **ADBE** | short | 15m · 5m | A/A |
-| **DIS**  | long  | 30m · 15m | B/B |
-| **UNH**  | long  | 30m · 5m  | B/A |
-| **DIA**  | long  | 60m · 30m | B/B |
-| **CAT**  | long  | 60m · 15m | B/B |
-| **GOOGL** | long | 15m · 5m  | B/A |
-| **ORCL** | short | 15m · 5m | B/B |
+## 🚫 Caveats
 
-### The story
+- Last close is Fri 04-17. Monday open can invalidate — especially the 5m list.
+- No live `day_type` label (PLAYBOOK rule 2); live scanner adds that Monday morning.
+- Universe is 52 hand-picked names; smaller active SPTs outside this list are invisible.
+- Pullback-pct is unbounded on smaller moves — read netR + closeness first.
 
-Daily: broad tape is green — tech (AVGO/AMD/AMZN) and financials (BAC) in clean SPT uptrends. 60m/index ETFs confirm.
+## Follow-ups
 
-Intraday (30m and finer): **defensive rotation** — bid moved into MRK/UNH/HD/DIS/WMT in the last hours of Friday's cash.
-
-Simultaneously: **software-complex SPT-short** at 15m/5m — CRM and ADBE both A-grade short on both timeframes, ORCL B-grade short on both. Enterprise software is diverging from the daily mega-cap-tech uptrend. Cleanest cross-timeframe divergence in the scan.
-
-### How to use this list
-
-- **Universe pre-filter for the live scanner** — when H1/H2 fires on a name from the long list, that's a highly-aligned cross-TF signal.
-- **Timeframe-of-trade anchor** — scalping 5m? pick from the 5m list. Position swinging? daily list.
-- **Divergence flag** — CRM/ADBE/ORCL longs are a dangerous cell; shorts on those three names are setup-selection-favored.
-
-### Caveats
-
-- No live `day_type` label (PLAYBOOK rule 2) — static scan doesn't know Monday's day-type. Live scanner adds that layer.
-- Last close is Fri 04-17; Monday's tape can invalidate. The 5m list is hours-old by open.
-- Universe is 52 hand-picked names; smaller active SPTs outside the universe are invisible here.
-
-### Follow-ups
-
-- **Q47** — cross-timeframe-SPT backtest. Does requiring SPT on ≥2 TFs lift perR? Needs per-bar TF stacking in scanner.
-- **Q48** — software-complex SPT-short persistence. Re-scan EOD Monday to see if CRM/ADBE/ORCL cluster holds.
+- **Q47** — cross-timeframe-SPT backtest. Does requiring SPT on ≥2 TFs lift perR above the PLAYBOOK?
+- **Q48** — software SPT-short regime persistence. Re-scan Monday EOD for ORCL/ADBE/CRM cluster.
+- **Q49** — AMD +36.9%/20d is extreme. Is it a mature-SPT (late-stage) or continuation (early-stage)? Flag for manual review.
 
 Full vault note: [small-pullback-trend-multi-tf-candidates-2026-04-19.md](https://github.com/zerosumsystems-ui/aiedge-vault/blob/main/Brooks%20PA/concepts/small-pullback-trend-multi-tf-candidates-2026-04-19.md)
 
