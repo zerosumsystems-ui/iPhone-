@@ -1,31 +1,40 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 16 (contributor redundancy study)
+**Last updated:** 2026-04-19 · **Latest run:** increment 17 (all four "needs your nod" follow-ups closed)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr16.pdf)** — same headline findings, phone-readable.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr17.pdf)** — same headline findings, phone-readable.
 
 ## TL;DR
 
 The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlapping work. We've unified them into one canonical `TrendState` that aggregates **12 direction-voting contributors** across **5 families** (directional · magnitude · session-memory · structural · regime). The 13th inventory entry — the regime *amplifier* family — is formally excluded as a stratifier, not a direction voter.
 
-**Status:** inventory complete, 143 test classes / 905 subtests green, zero look-ahead bias, **zero production consumers yet** — the dashboard payload still doesn't read `TrendState`. That wiring needs your nod.
+**Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 16) — `trending_swings` is the only independent voter
+## Most recent finding (incr 17) — synthetic-bank caveat CONFIRMED on real data; recommendations REVERSED
 
-Pairwise Pearson r between every pair of the 12 contributors, computed over a per-bar bank of all 5 fixtures (~130 rows):
+Re-ran the incr-16 redundancy study on **real ES.c.0 5-min bars** from the cache (6 sessions, 593 bar prefixes). Side-by-side comparison vs the synthetic-fixture bank:
 
-![Contributor agreement matrix](figures/contributor_agreement.png)
-
-**What you're looking at:**
-- **Left:** 12×12 correlation heatmap. Contributors grouped by family (white separator lines). Red = move together, blue = move opposite.
-- **Right:** per-contributor uniqueness (mean |r| with the other 11). Lower bar = more independent signal. Vertical dotted line = bank average (0.79).
+![Real vs synthetic uniqueness](figures/contributor_agreement_real.png)
 
 **Headline numbers:**
-- `trending_swings` |r|_avg = **0.34** — only contributor below the bank average. Less than half the next-best.
-- `small_pullback_trend` ↔ `bpa_trend_bar_density` correlate at **r = +0.997** — near-duplicate votes. Same-family, both per-bar trend-bar density at heart. Strongest candidate to either down-weight as a unit or drop one once Pattern Lab WRs decide.
-- 11 of 12 contributors sit at |r|_avg between 0.77 and 0.88 — equal weighting is silently double-counting most of the stack.
+- `small_pullback_trend ↔ bpa_trend_bar_density`: synthetic **r = +0.997** → real **r = +0.404**. **NOT a near-duplicate.** The incr-16 down-weight recommendation is REVERSED.
+- `trending_everything ↔ htf_alignment`: synthetic +0.995 → **real ~0**. Pure polarized-fixture artifact.
+- Mean uniqueness across 12 contributors: real **0.148** vs synthetic **0.782** — real shows **~5× more independence**.
+- `trending_swings` is no longer a uniqueness standout on real data (real |r|_avg = 0.138, middle of pack).
 
-**Caveat called out loudly:** several cross-family near-perfect correlations (e.g. `trending_everything` ↔ `htf_alignment` = +0.995) are sample-bank artifacts of polarized synthetic fixtures + confluent HTF pairing. **Real-data validation is the next step before any weight change.**
+**New issue surfaced:** `majority_trend_bars` is **constant 0** across all 593 cached real bars — fires on zero of them. Threshold likely too strict for real overnight ES futures. Either drop it (neutral on hit rate) or recalibrate.
+
+## Weighting hit-rate study — equal weighting stays
+
+Pattern Lab DB is empty (0 bytes), so substituted: how often does the equal-weighted TrendState direction match realised close-to-close direction over forward 3 / 6 / 12 bars on cached real sessions?
+
+![Weighting hit-rate comparison](figures/trend_state_weighting_hitrate.png)
+
+- **15 min:** equal **0.567** · drop_zero 0.578 · downweight_pair 0.586 — slight edge over coin flip.
+- **30 min:** all variants ≈ 0.53 — coin flip.
+- **60 min:** all variants ≈ 0.46 — slight contrarian.
+
+No weighting variant beats equal by more than +0.02. **Equal weighting stays.**
 
 ## Why `trending_swings` matters — the blind-spot story
 
@@ -47,16 +56,18 @@ Each row is a canonical market regime. Each column is one classifier's signed sc
 
 When a bull session flips bear at bar 8, the seven recency-aware contributors rotate negative within a few bars. But session-memory + structural + regime contributors stay anchored to the opening / HTF bias. The all-12 mean settles at **-0.13** post-flip vs the recency-only mean at **-0.55**. Quantifies the case for eventually weighting these families down — once Pattern Lab WRs justify it.
 
-## What's next — needs your nod
+## What's next — still needs your nod
 
-1. **Emit `trend_state` into the dashboard payload.** Additive but visible.
-2. **Wire real daily/weekly close history into the pipeline** so `htf_alignment` isn't dormant in production.
-3. **Pattern Lab WR-driven weighting decision** — start by testing whether down-weighting the `small_pullback_trend` ↔ `bpa_trend_bar_density` near-duplicate pair improves WR.
-4. **Real-data redundancy validation** — re-run the incr-16 study on a backtest sample of real intraday sessions to confirm the synthetic-bank findings.
+1. **Front-end `TrendState` panel.** Payload now ships `trendState` per ticker; site doesn't render it yet. Wire a small panel under the existing `htfAlignment` line on aiedge.trade.
+2. **Investigate `majority_trend_bars` constant-0 on real data.** Threshold recalibration vs drop. Drop is the smaller-blast-radius option but masks the underlying issue.
+3. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
+4. **Larger real-data sample.** Six overnight ES sessions is thin. Cache more dates / add RTH 5-min bars before drawing strong conclusions about weighting.
 
-## All figures (10)
+## All figures (12)
 
-- [contributor_agreement.png](figures/contributor_agreement.png) — incr 16 redundancy heatmap + uniqueness ranking *(NEW)*
+- [contributor_agreement_real.png](figures/contributor_agreement_real.png) — incr 17 real-data validation heatmap + side-by-side uniqueness *(NEW)*
+- [trend_state_weighting_hitrate.png](figures/trend_state_weighting_hitrate.png) — incr 17 weighting variant hit rates *(NEW)*
+- [contributor_agreement.png](figures/contributor_agreement.png) — incr 16 synthetic redundancy heatmap (now known to be inflated)
 - [contributor_matrix.png](figures/contributor_matrix.png) — 12 × 5 control panel
 - [blind_spot_count.png](figures/blind_spot_count.png) — firing vs blind per fixture
 - [contributor_recency.png](figures/contributor_recency.png) — bull-to-bear reversal, 4-family resolution
@@ -69,8 +80,9 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
+- [trend-contributor-findings-2026-04-19-incr17-followups.md](notes/trend-contributor-findings-2026-04-19-incr17-followups.md) — most recent run, all 4 follow-ups closed
+- [trend-contributor-findings-2026-04-19-incr16-redundancy.md](notes/trend-contributor-findings-2026-04-19-incr16-redundancy.md) — synthetic redundancy study (largely overturned by incr 17)
 - [trend-contributor-findings-2026-04-19-incr15-capstone.md](notes/trend-contributor-findings-2026-04-19-incr15-capstone.md) — read first if cold
-- [trend-contributor-findings-2026-04-19-incr16-redundancy.md](notes/trend-contributor-findings-2026-04-19-incr16-redundancy.md) — most recent run
 - [trend-classification-inventory.md](notes/trend-classification-inventory.md) — original 13-classifier inventory
 - [trend-state-canonical-spec.md](notes/trend-state-canonical-spec.md) — the schema
 
@@ -83,7 +95,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
-- **incr 16** (2026-04-19) — empirical contributor redundancy study. New `contributor_agreement.png` + first PDF (`pdfs/trend-research-2026-04-19-incr16.pdf`). Pure addition, zero production code change.
+- **incr 17** (2026-04-19) — all four "needs your nod" follow-ups closed. Real-data redundancy validation overturns most incr-16 conclusions. `trend_state` wired into live runner + dashboard payload (additive). Weighting study confirms equal weighting stays. New figures + PDF. **602 tests / 905 subtests still green.**
+- **incr 16** (2026-04-19) — empirical contributor redundancy study (synthetic). New `contributor_agreement.png` + first PDF. Pure addition, zero production code change. *Largely overturned by incr 17 real-data validation.*
 - **incr 15** (2026-04-19) — capstone. `htf_alignment` wired as 12th contributor. Inventory complete.
 - **incr 14** (2026-04-19) — `session_shape` wired (11th, structural-pair).
 - **incr 13** (2026-04-19) — `day_type` wired (10th, first structural).
