@@ -5,6 +5,7 @@ Phone-readable summaries of autonomous research runs. Each subject has its own f
 ## Active subjects
 
 - **[trend-classification/](trend-classification/)** — unifying the 13 parallel trend classifiers in `aiedge-scanner` into one canonical `TrendState`. Inventory complete (12 of 12 contributors wired). Most recent run: increment 16 — empirical contributor redundancy study.
+- **[spt-research/](spt-research/)** — small-pullback-trend follow-up research arc (30 notes). Most recent run: pt 30 — first MA-gap-bar exit overlay (Q43) closes NEGATIVE/EMPTY; third Brooks→aiedge transfer failure; Brooks-source well exhausted for SPT.
 
 ## How this repo gets updated
 
