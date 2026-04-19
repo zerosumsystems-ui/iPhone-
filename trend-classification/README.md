@@ -2,6 +2,8 @@
 
 **Last updated:** 2026-04-19 · **Latest run:** increment 16 (contributor redundancy study)
 
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr16.pdf)** — same headline findings, phone-readable.
+
 ## TL;DR
 
 The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlapping work. We've unified them into one canonical `TrendState` that aggregates **12 direction-voting contributors** across **5 families** (directional · magnitude · session-memory · structural · regime). The 13th inventory entry — the regime *amplifier* family — is formally excluded as a stratifier, not a direction voter.
@@ -81,7 +83,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
-- **incr 16** (2026-04-19) — empirical contributor redundancy study. New `contributor_agreement.png`. Pure addition, zero production code change.
+- **incr 16** (2026-04-19) — empirical contributor redundancy study. New `contributor_agreement.png` + first PDF (`pdfs/trend-research-2026-04-19-incr16.pdf`). Pure addition, zero production code change.
 - **incr 15** (2026-04-19) — capstone. `htf_alignment` wired as 12th contributor. Inventory complete.
 - **incr 14** (2026-04-19) — `session_shape` wired (11th, structural-pair).
 - **incr 13** (2026-04-19) — `day_type` wired (10th, first structural).
