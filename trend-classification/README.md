@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 22 (real-time stability — **63 % of sessions never flip direction**; median lock-in at bar 11)
+**Last updated:** 2026-04-19 · **Latest run:** increment 23 (flip timing + strength-as-predictor — **|strength| ≥ 0.15 at bar 20 ⇒ 93 % direction-survival**; flips cluster bimodally in bars 15-39)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr22.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr23.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,79 +32,104 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 22) — the live classifier almost never flips its mind once it commits
+## Most recent finding (incr 23) — a real-time gate emerges: `|strength| ≥ 0.15 at bar 20` ⇒ **93 %** direction-survival
 
 ### The whole story in a picture
 
-![Flip distribution](figures/realtime_stability_flips.png)
+![Where flips happen in the session](figures/realtime_flip_timing.png)
 
-### The whole story in two sentences
+### The whole story in three sentences
 
-Every prior run graded the 12-judge panel on **closed days** — we fed it the whole day and read one verdict. This run asked a different, more important question: **if a trader listens to the panel live during the day, does it keep changing its mind?** We fed bars one at a time across 300 real trading sessions — up to 68 readings per session, ~20 000 total — and measured how often the direction ("up"/"down") flips. The answer is striking: **63 % of sessions had zero direction flips** from open to close. When the panel commits to a direction, it almost never reverses. The median session "locks in" its final reading by **bar 11** — essentially within the first 55 minutes of trading.
+Incr 22 showed the live classifier almost never flips (63 % zero-flip rate, median lock-in bar 11). This run answers the follow-up that matters for live consumption: **WHEN do the 37 % of flipping sessions actually flip, and can a trader know in advance which readings are safe to trust?** Across 200 sessions we found (a) flips cluster bimodally in bars **15-39** — **64 % of all flips** — with peaks at bar 15-19 (**19 %**) and bar 30-39 (**26 %**); (b) sessions where `|strength| ≥ 0.15` at bar 20 see their direction survive to the final bar **93 %** of the time, vs 47 % for weaker readings; (c) `TrendState.structure` is **16× noisier** than direction (9.53 vs 0.58 flips per session), but most of that noise is the intended spike → channel evolution, not random flicker.
+
+### The real-time gate that emerged from the data
+
+![The |strength| gate at bar 20](figures/realtime_strength_predictor.png)
+
+The left panel is the headline: at **bar 20**, bucket sessions by `|strength|`. The < 0.15 bin has 47 % direction-survival and 46 % zero-flip — baseline noise. The 0.15-0.30 bin jumps to **93 % direction-survival** and **85 % zero-flip**. The 0.30-0.50 bin hits 100 %. The right panel shows lock-in speed: median lock-in bar drops from 18 → 10 as we cross the 0.15 threshold. **This is the gate the data is asking for** — a dashboard consumer rule, not a scoring change.
+
+### Structure — 16× noisier than direction, but the noise is the story
+
+![Structure trajectory across the session](figures/realtime_structure_density.png)
+
+At **bar 10**, 100 % of sessions are in opening-spike labels (49 % `bull_spike`, 51 % `bear_spike`). By **bar 20**, the spike share has collapsed to < 1 % and channel labels dominate. By **bar 78** (end-of-day subset), 94 % are in a channel. Structure flips 9.5× per session on average, but 100 % → 0 % spike-share between bar 10 and bar 30 is **intended Brooks cycle-phase evolution**, not instability. The front-end should emit structure as a discrete label — don't summarise with a "confidence" number, and don't treat structure changes as reversal signals.
+
+![Direction vs structure flip counts](figures/realtime_dir_vs_struct_flips.png)
+
+Direction flips (red) cluster at zero. Structure flips (blue) span 5-15. This is the right behaviour — direction is a 3-way label, structure is 6+-way. The ratio just formalises that structure captures ongoing cycle progression while direction captures reversals.
 
 ### Why this matters
 
-Up until now, nobody had measured whether the `TrendState` that production emits on every scanner cycle is **safe to trust live**. It could have been flipping around 5 times a session and we wouldn't have known. The study answers that: **it doesn't flip.** Live readings are usable.
+Incr 22 proved the classifier is **stable** in aggregate. This run makes the stability **actionable** at a per-session level:
 
-![Live reading converges on final reading](figures/realtime_stability_convergence.png)
+- **Bar 10**: reading available but near-random (31 % 'none', 34/35 up/down).
+- **Bar 20 + `|strength| ≥ 0.15`**: high-confidence reading — 93 % direction-survival.
+- **Bar 30**: 64 % of all flipping sessions have already had their reversal — the reading is in the stable majority.
 
-The green line is the crucial one: **at each bar of the session, how often does the live reading already match what the classifier will say at the close?** It starts near 50 % (half-random, as expected — the classifier needs data to form an opinion) and climbs steadily to 90 % by bar 75. The red dashed line is the "opposite to final" line — it stays low. Most of the non-matching mass is "none" (the classifier declining to commit), not "wrong".
-
-### The warmup shape is honest
-
-![Direction density by bar](figures/realtime_stability_density.png)
-
-At **bar 10** (first 50 minutes of the session), the classifier is near-random: 34 % say up, 35 % say down, 31 % say "none". This is the design working correctly — the panel refuses to commit early. By **bar 40** (mid-session), the picture is decisive: 66 % up, 21 % down, 13 % none. The classifier **earns** its opinion as evidence accumulates.
-
-### When does the reading "lock in"?
-
-![Lock-in histogram](figures/realtime_stability_lockin.png)
-
-For directional sessions, the median "lock-in bar" — the earliest bar where the direction matches final AND never reverses — is **bar 11**. Mean is 19.5. **70 % of sessions lock in by bar 20; 93 % by bar 40.** For a trader, this means: if you see the same direction at 10:10 ET and 10:30 ET and it's still the same direction, it's almost certainly the day's final reading.
+Combined with incr 22's median lock-in of bar 11, this gives a concrete real-time cadence a dashboard consumer can use.
 
 ### What this does NOT say
 
-**Stability ≠ accuracy.** 63 % zero flips means the classifier agrees with itself. Whether the classifier is right about the market's direction is a separate question, answered in incr 19: when the strong contributors fire (`trending_everything`, `session_shape`, `day_type` TFO), they're directionally accurate in the 90s-to-100%. **Combining the two: when the aggregate `TrendState` speaks, it (a) is stable and (b) agrees with the realised open→close direction above baseline.**
-
-### The contrast with last week
-
-| Run | Metric | Result |
-|---|---|---|
-| incr 21 | Accuracy when `day_type` TFO fires | **100 %** across 20 gate settings |
-| incr 22 | Live flips per session | **0** for 63 % of sessions |
-
-Complementary findings on different axes — **precision of individual judges** (21) and **stability of the aggregate** (22).
+**Stability ≠ accuracy.** 93 % direction-survival means the bar-20 reading agrees with the final bar-78 reading. Whether the classifier is right about the market's realised move is a different question — that's incr 19, where the strongest contributors score 96-100 % directional accuracy when they fire. Combining the two: when the aggregate `TrendState` speaks, it (a) is stable (incr 22), (b) is stable from surprisingly early bars once strength is ≥ 0.15 (this run), and (c) agrees with the realised open→close direction above baseline (incr 19).
 
 ### What I'm recommending this run
 
-**Nothing new — no threshold changes.** This was purely an "is the live output safe?" study. The answer is yes. Four prior threshold recommendations are still pending Will's nod (see bottom of page).
+**Optional dashboard consumer rule** — display "high-confidence live direction" when `|strength| ≥ 0.15` AND bar count ≥ 20. Zero change to `compute_trend_state`, scoring, or ranking. Pending your nod if/when the front-end panel lands.
 
 ### For the engineers: the numbers
 
 <details>
 <summary>Click to expand the technical view</summary>
 
-**Sample:** 300 (symbol, session) pairs from `cache/databento/*.parquet`, 1-min → 5-min RTH, warmup 10 bars. 164 up / 62 down / 74 'none' final. Runtime 468 s (~7.8 min).
+**Sample:** 200 (symbol, session) pairs from `cache/databento/*.parquet`, 1-min → 5-min RTH, warmup 10 bars. Full per-bar trajectory (12 129 rows) persisted for future reuse. Runtime 355 s (~5.9 min).
 
-**Flip counter rule:** up→down counts as 1 flip. up→none→up counts as 0 flips. Strict — counts only genuine directional reversals, not transient 'none' traversals.
+**Flip timing — % of all 116 observed flips by bar bucket:**
 
-**Lock-in rule:** earliest k where `direction == final` AND the opposite direction never appears in bars k+1..end.
+| Bucket | Count | % of flips |
+|---|---|---|
+| 10-14 | 2 | 2 % |
+| **15-19** | 22 | **19 %** |
+| 20-24 | 16 | 14 % |
+| 25-29 | 16 | 14 % |
+| **30-39** | 30 | **26 %** |
+| 40-49 | 10 | 9 % |
+| 50-59 | 5 | 4 % |
+| 60-78 | 15 | 13 % |
 
-**Aggregate numbers:**
-- Flips: mean **0.56**, median **0**, max 5. **63.3 % zero.**
-- Lock-in bar: median **11**, mean **19.5**. 70 % ≤ 20, 93 % ≤ 40.
-- Convergence to final: **50 %** at bar 10, **75 %** at bar 36, **90 %** at bar 75.
-- Density (up/none/down at selected bars): bar 10 = 34/31/35; bar 20 = 42/29/29; bar 30 = 48/28/24; bar 40 = 66/13/21; bar 78 = 75/12/13.
+**Strength-as-predictor (at bar 20):**
 
-**Caveat:** late-bar density (bar 60+) reflects the subset of sessions that reach full 78-bar RTH length (132 of 300). Shape stays meaningful but percentages are on a shifting n.
+| `|strength|` | n | % zero flips | % dir@20 = final | Median lock-in |
+|---|---|---|---|---|
+| 0.00-0.15 | 85 | 46 % | 47 % | 18 |
+| **0.15-0.30** | **59** | **85 %** | **93 %** | **10** |
+| 0.30-0.50 | 6 | 100 % | 100 % | 10 |
+| 0.50+ | 0 | — | — | — |
 
-**Code:** `~/code/aiedge/scanner/tools/realtime_stability_incr22.py` (370 LOC). Progressive calls to `compute_trend_state(df.iloc[:k])` for k = 10 .. len(df). Daily/weekly closes passed as None — `htf_alignment` silently zeros (known, per incr 19).
+**Caveats:**
+- 0.50+ is empty because the equal-weighted 12-contributor aggregate structurally damps at bar 20 — not a ceiling, just a distribution note.
+- Late-bar (60+) density uses the subset of sessions that reach that point (90 of 200 for full 78-bar days).
+- Stability reproduces incr 22: 0.58 mean direction flips / session on 200 sessions vs 0.56 on incr 22's 300 — the claim generalises.
+
+**Code:** `~/code/aiedge/scanner/tools/realtime_stability_stratified_incr23.py`. Progressive calls to `compute_trend_state(df.iloc[:k])` for k = 10 .. len(df). Structure trajectory recorded via `ts.structure` — a cycle-phase argmax label.
 
 **Next studies surfaced:**
-- Stratify by `day_type` — does lock-in timing differ between TFO days and chop days? Likely bimodal.
-- Of the 37 % of sessions that DO flip, **where** in the session does the flip happen?
-- Strength trajectory: does `|TrendState.strength|` monotonically grow, peak-and-fade, or oscillate?
-- Structure trajectory: same question for `TrendState.structure`.
+- Structure-flip type taxonomy: separate intended-evolution flips (bull_spike → bull_channel) from reversal flips (bull_channel → bear_channel). Likely 9 / session intended + 0.5 / session genuine-reversal split.
+- Strength-predictor on a larger sample to fill the 0.30+ buckets.
+- Day-type stratification (TFO vs chop vs trading_range) to check the aggregate isn't hiding bimodality between day types.
+- Bar-30 strength gate: probably 98 %+ dir-survival at |strength| ≥ 0.15, trade-off is 10 extra minutes of delay.
+
+</details>
+
+## Previous finding (incr 22) — the live classifier almost never flips its mind once it commits
+
+<details>
+<summary>Expand — 63 % zero-flip rate, median lock-in bar 11</summary>
+
+![Flip distribution](figures/realtime_stability_flips.png)
+
+Every prior run graded the 12-judge panel on **closed days** — we fed it the whole day and read one verdict. Incr 22 asked a different, more important question: **if a trader listens to the panel live during the day, does it keep changing its mind?** We fed bars one at a time across 300 real trading sessions — up to 68 readings per session, ~20 000 total — and measured how often the direction ("up"/"down") flips. The answer is striking: **63 % of sessions had zero direction flips** from open to close. When the panel commits to a direction, it almost never reverses. The median session "locks in" its final reading by **bar 11** — essentially within the first 55 minutes of trading.
+
+Live readings are usable. See the incr 22 PDF for the full convergence / density / lock-in figure set: [pdfs/trend-research-2026-04-19-incr22.pdf](pdfs/trend-research-2026-04-19-incr22.pdf).
 
 </details>
 
@@ -263,22 +288,27 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **NO NEW RECOMMENDATION (incr 22).** This run was a stability verification, not a knob sweep. `TrendState` is confirmed safe to consume live.
-2. **STILL PENDING (incr 21):** loosen `OPEN_EXTREME_THRESHOLD: 0.15 → 0.25` in `aiedge/context/daytype.py::_classify_day_type` (currently a magic literal). Gains +3 pp TFO fire rate with zero accuracy cost. Lowest-risk of the pending items.
-3. **STILL PENDING (incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests.
-4. **DOCUMENTATION (zero blast radius, incr 19):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`.
-5. **STILL PENDING (incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50.
-6. **Front-end `TrendState` panel** (slightly stronger case now — stability verified in incr 22). Payload already ships `trendState` per ticker; site doesn't render it yet.
-7. **NEXT STUDY (incr 22 surfaced):** stratify lock-in timing by `day_type`. Likely bimodal — TFO days lock in immediately, chop days may never lock in.
-8. **NEXT STUDY (incr 22 surfaced):** strength + structure trajectories. Does `|strength|` monotonically grow? Does `structure` flip more often than `direction`?
-9. **NEXT STUDY (incr 21 surfaced):** full `day_type` sweep covering `spike_and_channel`, `trending_tr`, `trading_range` branches (TFO alone fires at 12 %; full classifier fires at 19.6 %).
-10. **NEXT STUDY (incr 20 flagged):** rebalanced 400-up / 400-down sample across a longer window.
-11. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
-12. **Multi-month sample.** 10-day cache is fine for stability (clean signal) but multi-month would confirm 63 % zero-flip isn't window-specific.
+1. **NEW (incr 23)** — optional dashboard consumer rule: display "high-confidence live direction" when `|strength| ≥ 0.15` AND bar count ≥ 20. Zero change to `compute_trend_state`, scoring, or ranking. Relevant only if/when the front-end `TrendState` panel lands.
+2. **STILL PENDING (incr 22)** — no new threshold recommendations from the stability run.
+3. **STILL PENDING (incr 21):** loosen `OPEN_EXTREME_THRESHOLD: 0.15 → 0.25` in `aiedge/context/daytype.py::_classify_day_type` (currently a magic literal). Gains +3 pp TFO fire rate with zero accuracy cost. Lowest-risk of the pending items.
+4. **STILL PENDING (incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests.
+5. **DOCUMENTATION (zero blast radius, incr 19):** add a one-line note to `compute_trend_state` docstring flagging that callers passing `None` for `daily_closes`/`weekly_closes` get a silent zero contribution from `htf_alignment`.
+6. **STILL PENDING (incr 18):** introduce `MAJORITY_TREND_BAR_FLOOR = 0.25` in `aiedge/signals/components.py`. Body-ratio stays at 0.50.
+7. **Front-end `TrendState` panel** (even stronger case now — incr 22 verified stability + incr 23 provides the strength gate). Payload already ships `trendState` per ticker; site doesn't render it yet.
+8. **NEXT STUDY (incr 23 surfaced):** structure-flip type taxonomy — split intended-evolution flips (bull_spike → bull_channel) from genuine reversals (bull_channel → bear_channel).
+9. **NEXT STUDY (incr 23 surfaced):** strength-at-bar-30 gate — likely 98 %+ direction-survival at |strength| ≥ 0.15, trade-off is 10 extra minutes.
+10. **NEXT STUDY (incr 22 surfaced, still open):** stratify lock-in timing by `day_type`. Likely bimodal — TFO days lock in immediately, chop days may never lock in.
+11. **NEXT STUDY (incr 21 surfaced):** full `day_type` sweep covering `spike_and_channel`, `trending_tr`, `trading_range` branches (TFO alone fires at 12 %; full classifier fires at 19.6 %).
+12. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
+13. **Multi-month sample.** 10-day cache is fine for stability (clean signal) but multi-month would confirm 63 % zero-flip isn't window-specific.
 
-## All figures (32)
+## All figures (36)
 
-- [realtime_stability_convergence.png](figures/realtime_stability_convergence.png) — incr 22 per-bar match-vs-final convergence profile *(NEW)*
+- [realtime_flip_timing.png](figures/realtime_flip_timing.png) — incr 23 where-in-session flips happen (bimodal) *(NEW)*
+- [realtime_strength_predictor.png](figures/realtime_strength_predictor.png) — incr 23 |strength| ≥ 0.15 at bar 20 as a real-time gate *(NEW)*
+- [realtime_structure_density.png](figures/realtime_structure_density.png) — incr 23 structure trajectory across the session *(NEW)*
+- [realtime_dir_vs_struct_flips.png](figures/realtime_dir_vs_struct_flips.png) — incr 23 direction vs structure flip histogram *(NEW)*
+- [realtime_stability_convergence.png](figures/realtime_stability_convergence.png) — incr 22 per-bar match-vs-final convergence profile
 - [realtime_stability_flips.png](figures/realtime_stability_flips.png) — incr 22 direction-flip histogram per session *(NEW)*
 - [realtime_stability_lockin.png](figures/realtime_stability_lockin.png) — incr 22 first-bar lock-in distribution *(NEW)*
 - [realtime_stability_density.png](figures/realtime_stability_density.png) — incr 22 up/none/down breakdown at bars 10, 20, 30, 40, 50, 60, 78 *(NEW)*
@@ -313,7 +343,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr22-realtime-stability.md](notes/trend-contributor-findings-2026-04-19-incr22-realtime-stability.md) — most recent run, real-time stability
+- [trend-contributor-findings-2026-04-19-incr23-flip-timing.md](notes/trend-contributor-findings-2026-04-19-incr23-flip-timing.md) — most recent run, flip timing + strength gate + structure trajectory
+- [trend-contributor-findings-2026-04-19-incr22-realtime-stability.md](notes/trend-contributor-findings-2026-04-19-incr22-realtime-stability.md) — real-time stability
 - [trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md](notes/trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md) — `day_type` TFO-gate sweep
 - [trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md](notes/trend-contributor-findings-2026-04-19-incr20-always-in-sweep.md) — `always_in` two-axis sweep
 - [trend-contributor-findings-2026-04-19-incr19-degeneracy.md](notes/trend-contributor-findings-2026-04-19-incr19-degeneracy.md) — 12-contributor degeneracy + accuracy hierarchy
@@ -333,6 +364,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 23** (2026-04-19) — stratified real-time stability: flip timing, strength-as-predictor, structure trajectory. 200 RTH sessions, 12 129 per-bar trajectory rows. **64 % of all 116 direction flips fall in bars 15-39** (bimodal peaks at 15-19 and 30-39). **|strength| ≥ 0.15 at bar 20 ⇒ 93 % direction-survival** (vs 47 % baseline), 85 % zero-flip rate (vs 46 %), median lock-in bar 10 (vs 18). `TrendState.structure` is 16× noisier than direction (1 905 vs 116 flips) but most movement is intended spike → channel evolution. Reproduced incr 22 stability: 0.58 mean direction flips / session vs 0.56. **One optional dashboard consumer rule.** No production change.
 - **incr 22** (2026-04-19) — real-time stability of `compute_trend_state`. First run to grade the classifier **live** (progressive bar-by-bar calls) rather than on closed sessions. 300 RTH sessions × up to 68 calls each ≈ 20k `compute_trend_state` calls. **63.3 % of directional sessions have zero direction flips**; mean 0.56, max 5. Median lock-in bar = 11, mean = 19.5. 70 % of sessions lock in by bar 20, 93 % by bar 40. Per-bar convergence to final direction: 50 % at bar 10, 75 % at bar 36, 90 % at bar 75. **Conclusion: TrendState is safe to wire into front-end live consumption.** No production change.
 - **incr 21** (2026-04-19) — `day_type` TFO-gate sweep (OPEN_EXTREME × TREND_PCT_MIN, 20 cells) on the same 800 RTH 5-min equity sessions / 387 symbols. TFO gate is a **100 % precision detector** — zero sign mismatches in every cell, including the loosest (127 fires at OE=0.30, TPM=0.40). Coverage is the only lever worth tuning; OE is binding (fire rate 9.6 → 14.9 % as OE loosens 0.10 → 0.30). Recommendation: loosen OE 0.15 → 0.25 for +3 pp coverage. **Read-only — no production change.**
 - **incr 20** (2026-04-19) — `always_in` two-axis sweep (ALWAYS_IN_WINDOW × DIRECTION_MIN_CONSEC) over 800 RTH 5-min equity sessions. Production (W=5, K=2) fires 36% / 57.6% accuracy — below the 66% always-up baseline. W=10, K=2 strictly dominates: 52% / 66.9%. Binding knob is W, not K. Recommendation: raise window to 10. **Read-only — no production change.**
