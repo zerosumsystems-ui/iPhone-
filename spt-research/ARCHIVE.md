@@ -1,6 +1,6 @@
 # SPT research — full archive
 
-Every small-pullback-trend research note in reading order. 31 dated notes + the parent concept doc + the INDEX + the PLAYBOOK.
+Every small-pullback-trend research note in reading order. 32 dated notes + the parent concept doc + the INDEX + the PLAYBOOK.
 
 **Canonical sources:**
 - **aiedge-vault (GitHub):** [zerosumsystems-ui/aiedge-vault → Brooks PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts)
@@ -56,6 +56,7 @@ The phone-briefing copies in [`notes/`](notes/) are mirrors. If a note is missin
 | 29 | 2026-04-19 | [climactic-exit](notes/small-pullback-trend-climactic-exit-2026-04-19.md) | **Q42 NEGATIVE/RARE** |
 | 30 | 2026-04-19 | [first-ma-gap-exit](notes/small-pullback-trend-first-ma-gap-exit-2026-04-19.md) | **Q43 NEGATIVE/EMPTY** |
 | 31 | 2026-04-19 | [brooks-transfer-taxonomy](notes/small-pullback-trend-brooks-transfer-taxonomy-2026-04-19.md) | *synthesis — no Q closed* |
+| 32 | 2026-04-19 | [rule11-setup-concentration](notes/small-pullback-trend-rule11-setup-concentration-2026-04-19.md) | *resolves pt 23 §4 phantom-Q* |
 
 ---
 

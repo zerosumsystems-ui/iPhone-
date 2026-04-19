@@ -2,87 +2,109 @@
 
 Autonomous small-pullback-trend research notes, phone-readable. Long-form notes live in [`notes/`](notes/); phone-friendly PDFs in [`pdfs/`](pdfs/); the latest TL;DR is at the top of this README.
 
-> 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (31 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
+> 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (32 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
 
-**Last updated:** 2026-04-19 · pt 31 · [Download this run's PDF](pdfs/spt-research-2026-04-19-pt31.pdf)
+**Last updated:** 2026-04-19 · pt 32
 
-## Latest — pt 31: Brooks→aiedge transfer failure taxonomy (synthesis)
+## Latest — pt 32: rule-11 setup-level concentration + conditional-vs-uniform resolution
 
-**Run:** 2026-04-19, scheduled-task autonomous. Synthesis pass after pts 28/29/30 closed the Brooks-source trilogy negative.
+**Run:** 2026-04-19, scheduled-task autonomous. Zero-compute arithmetic decomposition of pt 27's existing output — no new Python, no DB reads.
 
 ### Headline
 
-Three Brooks→scanner transfer failures in a row (Q41, Q42, Q43) are not isolated — they're three distinct **modes** of the same underlying problem. This note names them, proposes a three-check zero-compute vetting checklist that would have pre-screened all three, and states where the arc's remaining +R actually lives.
+Rule 11's +0.19 R/trade book-wide lift (given rule 10 is on) is **not spread evenly** across SPT setups. It concentrates at **H1-long (+0.30)** and **L1-short (+0.15)**, is essentially noise at **H2-long (+0.04)**, and mildly regresses on **L2-short (−0.26, but n=3 sample artifact)**.
 
-**No PLAYBOOK change.** The PLAYBOOK still reads **+1.84 R/trade at −2R max DD** on the C3 combined stack.
+Natural question: should rule 11 be **conditional** on setup (apply only to H1-long + L1-short, skip H2-long + L2-short)? We can compute the answer exactly from pt 27 §5 without rerunning anything.
 
-### The three failure modes
+**No PLAYBOOK change.** Uniform rule 11 stands. The conditional form gives **identical expectancy** (+1.834 vs +1.841 R/trade; well inside bootstrap noise) at **slightly more throughput** (+8 trades) but at **worse max DD** (−3.00 vs −2.00). Rule 11's primary operational value is DD improvement, not perR lift — forfeiting DD to recover book-average-quality H2-long trades is the wrong trade.
 
-| Mode | Q (pt) | Signature | Mechanism |
-|---|---|---|---|
-| **Inversion** | Q41 · pt 28<br/>next-session follow-through | perR sign **opposite** Brooks's prediction. ALIGN n=6 −0.01 vs OPPOSED n=9 **+1.84** | Scanner's pullback-as-signal-bar inverts Brooks's "continuation with pullback entry" label. Brooks's ALIGN = scanner's OPPOSED. |
-| **Rarity** | Q42 · pt 29<br/>2× climactic-burst exit | `n_fired / n_baseline < 5%`. Only **2/101** fires at canonical cell | Rule 6 truncates entries at 14:15 ET; hybrid rule 9 resolves most trades before 14:00. Brooks's last-hour window is pre-empted. |
-| **Emptiness** | Q43 · pt 30<br/>first MA-gap bar exit | `n_fired_conditional = 0`. 16/101 see a gap bar; **0/16** are ≥ +1.5R | Trigger X and condition Y are anticorrelated on survivors. By the time pullback is deep enough, mtm averages −1.66R. |
+### The decomposition (pt 27 §5 reused)
 
-### Why concepts port and mechanics don't
+Rule 11's marginal lift **given rule 10 is on** (C1 → C3 per cell):
 
-- **Concepts** describe properties of the bar/window the scanner has NOW (H2 = second pullback; urgency = bar texture; SPT = shallow pullbacks). Scanner computes the same properties → **port clean**.
-- **Mechanics** describe actions conditional on bars the scanner *hasn't seen yet* (post-entry exits, next-session follow-through). The stack-selected post-entry bar distribution ≠ raw single-instrument tape distribution → **port badly**.
-- Pt 26's Brooks-source audit: **9/11 PLAYBOOK rules are Brooks-grounded and empirically positive** — all concept ports. Rules 8, 10 are pure-empirical. Three Brooks-mechanic candidates closed **0/3 positive**.
+| cell | n Δ | perR Δ | DD Δ |
+|---|--:|--:|---|
+| **H1 long** | 44 → 34 (−10) | +1.697 → **+1.994** (+0.297) | flat (−3.00) |
+| H2 long | 19 → 12 (−7) | +1.670 → +1.711 (+0.041) | −3.00 → −1.22 |
+| **L1 short** | 33 → 22 (−11) | +1.511 → **+1.659** (+0.148) | −3.00 → −2.00 |
+| L2 short | 4 → 3 (−1) | +2.222 → +1.963 (**−0.259**) | flat (0.00) |
 
-**Brooks-source well effectively exhausted** for SPT US single-name equities.
+H1-long and L1-short are doing all the perR work. H2-long contributes to DD improvement (−3 → −1.22) but barely moves perR. L2-short is a sample-size artifact (n=3).
 
-### The vetting checklist (zero-compute, runs on C0 baseline)
+### Uniform C3 vs conditional C3ʹ
 
-Run BEFORE writing the next backtest script. All three would have predicted Q41/Q42/Q43 negative.
+**C3ʹ** = rule 10 on shorts + rule 11 **only on H1-long + L1-short** (H2-long and L2-short use C1 values).
 
-1. **Label-polarity reconciliation.** Does Brooks's trigger bar coincide with the scanner's signal bar, or is one bar off? If Brooks's "pullback bar" = scanner's signal bar, invert the ALIGN/OPPOSED label before backtesting.
-2. **Base-rate on selected population.** `n_fired / n_baseline` — **< 10% → rare, skip**.
-3. **Conditional joint-probability.** If Brooks's rule is conditional ("do X given Y"), compute `n(Y AND X) / n(X)` on the baseline — **< 10% → empty, skip**.
+| metric | C3 uniform | C3ʹ conditional | Δ |
+|---|--:|--:|--:|
+| n | 71 | 79 | +8 (+11%) |
+| sumR | +130.71 | +144.92 | +14.21 |
+| **perR** | **+1.841** | **+1.834** | −0.007 (noise) |
+| **max DD** | **−2.00** | **−3.00** | −1.00 (worse) |
 
-Flagged as a future `spt_brooks_vetting.py` utility — build-when-needed.
+Bootstrap 95% CI on C3 perR is [+1.37, +2.32] (width ~0.95 R/trade). The 0.007 R/trade conditional-vs-uniform delta is two orders of magnitude inside that noise floor. **perR is identical.** The only real difference is throughput vs DD — and DD is the prize.
 
-### Where +R lives next
+### Why the concentration exists (Brooks mechanism)
 
-- **Scanner-side schema enrichments** (blocked on migrations): Q1 raw component scores, Q5 cross-asset, Q25 day_type label stability.
-- **Conditional-rule maturation** (data-growth-gated): Q33 rule-10 at n_shorts ≥ 80; **Q44 weekly tracking of rule-11 solo Δ** (measured +0.31 at pt 23 → +0.21 at pt 27, need 4 weekly readings to establish noise floor); Q45 L2-short; Q46 OPPOSED morning reversal cell.
-- **NOT** more Brooks-source excavation on SPT US single-names.
+- **H1 (first pullback)** and **L1 (first pullback down)** are the "strongest continuation" setups. By definition the prior bias has retraced only once. The signal bar should be a Brooks-canonical clean with-trend bar. An `opp_tail ≥ 0.25` (counter-trend wick ≥ 25% of bar range) on an H1 bar = failed counter-trend probe during formation = materially breaks the "shallow pullback" SPT premise. **Large Δ expected. Observed: +0.30 and +0.15.**
+- **H2 (second pullback)** is the "deeper pullback" setup. By construction it already tolerates more retracement — Brooks treats H2 as the *recovery from* a failed H1. Signal bar context is noisier because the pullback leg is longer. `opp_tail ≥ 0.25` is a much weaker deviation from expectation in H2 than in H1. **Small Δ expected. Observed: +0.04.**
+- **L2 short** mirrors H2-long; n=3 prevents confirmation.
+
+So the concentration **is signal, not noise** — it has a Brooks-grounded structural explanation. Rule 11's book-wide version averages this concentration out; the conditional version would preserve it. Both forms work; uniform form wins on DD.
+
+### What this closes
+
+Pt 23 §4 said "zero net impact on H2 (safe to apply uniformly)" when rule 11 was first proposed. That choice was correct on DD grounds (derived here in pt 32) but the *reason* was left implicit. Now derived. The phantom open question "should rule 11 be setup-conditional?" resolves **against** the conditional form.
+
+### Generalization
+
+The "setup-level concentration" decomposition is reusable as a one-off analysis pattern for any future book-wide rule adoption:
+
+1. Pull the rule's by-setup × direction table from its source note.
+2. Compute per-cell Δ(rule on | other rules on) for perR and DD.
+3. Does the rule's gain concentrate in ≤ 50% of cells? If yes, a conditional form exists.
+4. Does the conditional form dominate on perR **AND** DD, or only one? If only perR, the uniform form likely wins on DD (as here).
+5. Is the concentration structurally explainable (Brooks concept grounding)? If yes, it's signal; if no, sample artifact.
+
+Rule 10 already passes this test trivially — its gain is 100% concentrated at L1-short, 0% at longs. The rule is already structured as "shorts only" (the conditional form IS the rule).
+
+Rule 11 passes step 3 (concentration) but fails step 4 (conditional loses DD). Uniform stands.
 
 ### Adoption decision
 
-**No PLAYBOOK change.** This is a governance-layer note — it names the failure modes for future Brooks ports and states where the arc's center of gravity moves next. Rules 1-11 unchanged; sizing tags unchanged; economics unchanged.
+**No PLAYBOOK change.** This is a resolution note — it closes a phantom open question implicit in pt 23 and formalizes a reusable decomposition pattern. Rules 1-11 unchanged; sizing tags unchanged; economics unchanged.
 
 ---
 
 ## Why this matters for trading
 
-You don't need to do anything. The PLAYBOOK still delivers +1.84 R/trade at −2R max DD. What changed is the *governance* layer — future Brooks-candidate rules get routed through the three-check checklist first, so we stop burning compute on structurally impossible ports. When this note's checklist predicts the next candidate negative, we skip the backtest and move on.
+You don't need to do anything. The PLAYBOOK still delivers +1.84 R/trade at −2R max DD on the C3 combined stack. What this run did was confirm that **uniform rule 11 is the correct form** even though its lift is unevenly distributed across setups — because DD improvement is the real prize, and the conditional form gives that DD floor back.
 
 ---
 
 ## What's next — needs your nod
 
-Nothing from this run. Synthesis notes don't propose rule changes.
+Nothing from this run. Resolution notes don't propose rule changes.
 
 Open from earlier runs (still pending your nod):
 - **Hybrid rule 9** adoption (H1/H2 longs & H1 shorts → 5R, H2 shorts → 4R, L1/L2 → 3R). Walk-forward positive, +0.36R/trade over 3R uniform. From pt 17.
 - **Conditional rule 10** (2-bar swing stop on shorts). 24/25 LOO-weeks favor. From pt 21.
-- **Conditional rule 11** (drop signal bars with `opp_tail ≥ 0.25`). 25/25 LOO-weeks + 52/52 LOO-symbols favor. DD floor lifts from −4 to −2. From pt 23.
+- **Conditional rule 11** (drop signal bars with `opp_tail ≥ 0.25`, applied uniformly — pt 32 confirms uniform is correct). 25/25 LOO-weeks + 52/52 LOO-symbols favor. DD floor lifts from −4 to −2. From pt 23, reaffirmed in pt 32.
 
 ---
 
 ## Source
 
-- Long-form note: [`notes/small-pullback-trend-brooks-transfer-taxonomy-2026-04-19.md`](notes/small-pullback-trend-brooks-transfer-taxonomy-2026-04-19.md)
-- PDF: [`pdfs/spt-research-2026-04-19-pt31.pdf`](pdfs/spt-research-2026-04-19-pt31.pdf)
+- Long-form note: [`notes/small-pullback-trend-rule11-setup-concentration-2026-04-19.md`](notes/small-pullback-trend-rule11-setup-concentration-2026-04-19.md)
 - PLAYBOOK: `~/code/aiedge/vault/Brooks PA/concepts/small-pullback-trend-PLAYBOOK.md`
 - Reading-order index: `~/code/aiedge/vault/Brooks PA/concepts/small-pullback-trend-INDEX.md`
-- Sibling failure notes: pt 28 (Q41 inverted), pt 29 (Q42 rare), pt 30 (Q43 empty) — see `notes/`.
+- Source data: `~/code/aiedge/scanner/scratch/_out_spt_rule10_rule11_interaction_2026_04_19.txt` (pt 27 §5) — no re-run needed.
 
 ---
 
 ## Run history
 
+- **2026-04-19 · pt 32** — Rule-11 setup-level concentration decomposition. Gain concentrates at H1-long (+0.30) and L1-short (+0.15); H2-long flat (+0.04); L2-short n=3 artifact. Conditional C3ʹ matches uniform C3 on perR but worsens DD floor (−2 → −3). Decision: keep uniform. Closes phantom-Q from pt 23 §4. No PLAYBOOK change.
 - **2026-04-19 · pt 31** — Brooks transfer failure taxonomy (synthesis). Names Inversion/Rarity/Emptiness failure modes; proposes 3-check vetting checklist; states arc's forward priorities. No PLAYBOOK change.
 - **2026-04-19 · pt 30** — Q43 first MA-gap-bar exit overlay closed NEGATIVE/EMPTY. Brooks-canonical cell fires 0/101; 16/101 trades ever see a gap bar with mtm averaging −1.66R. Third Brooks→aiedge transfer failure.
 
@@ -90,19 +112,12 @@ Open from earlier runs (still pending your nod):
 
 ## TL;DR in plain English
 
-We keep a 9-rule playbook for trading "small pullback trend" days. It makes about **+1.84 of risk per trade** — bet $100 to win/lose, average **+$184**.
+Here's what we asked today: **rule 11 says "skip signal bars with an ugly counter-trend wick." Does that rule help equally across all four types of SPT trade, or does it only help some?**
 
-For months we've been mining Al Brooks's books for new rules to add. This week we tested the last three candidates he gave us. **All three failed.** Not by a little — by a lot. Each failed for a different reason, and that's the interesting part:
+Answer from the data we already have: rule 11 does almost all its work on the "first pullback" setups (H1 long, L1 short). On the "second pullback" setups (H2, L2) it's basically a no-op on the numbers. So the natural follow-up: should we only apply rule 11 to the first-pullback setups and leave the others alone?
 
-1. **The first rule fired on the wrong side.** Brooks said "keep going"; our data said "turn around." It turns out we labeled the same moment in the chart with the opposite word Brooks used. Lost in translation, not lost in the market.
-2. **The second rule almost never happened.** Brooks's signal only shows up in the last hour of the day. Our playbook already filters out late-day trades. So his rule fired 2 times out of 101 trades — too rare to matter.
-3. **The third rule was a paradox.** Brooks said "exit if you're winning when the warning sign appears." Problem: by the time the warning sign appears in our data, the trade is already losing. You can't lock in a win that doesn't exist yet.
+Answer: **no.** When we math it out, the expectancy is identical either way (+$184 vs +$183 on a $100 risk), but the version that applies rule 11 everywhere gives you a smaller worst day (−$200 vs −$300). And "smaller worst day" is why we adopted rule 11 in the first place. So: **keep applying rule 11 to everything, not just the first-pullback setups.**
 
-**Big lesson:** Brooks's *ideas about what a good trade looks like* work great — that's why 9 of our 11 rules are his. Brooks's *ideas about when to get out of a trade* don't work for us — because our filters already threw away most of the bad trades, so his exit signals fire on a picked-over population that behaves differently than his raw charts.
+**Nothing changed on your end.** The playbook still reads +1.84 R/trade at −2R worst drawdown. This was a bookkeeping pass that confirmed a decision we made a few runs ago was correct — and wrote down *why* it was correct in case we're tempted to revisit it.
 
-**Now what:**
-
-- **Stop** asking Brooks's books for more rules. That well is dry for this setup.
-- **Next time** a Brooks-rule candidate comes up, run it through a simple 3-question checklist *before* writing any code. The checklist would have caught all three of this week's failures in minutes instead of days.
-- **Real gains from here** will come from (a) upgrading what data the scanner remembers — we can't ask a lot of questions right now because some info is thrown away, (b) waiting for more trades so the rules we've already tested get sharper numbers, and (c) expanding past US stocks into futures and forex.
-- **Nothing to change today.** The trading rules you're using still work. This was a "sharpen the saw" week, not a "cut a new tree" week.
+**Why this kind of run is useful even when nothing changes:** when a rule fires unevenly across setups, the first instinct is "let's make it conditional." Sometimes that's right (rule 10 — shorts only). Sometimes it's wrong (rule 11 — uniform wins on drawdown). The only way to know which is to sit with the numbers. Today's run does that for rule 11 and bakes the reasoning into the PLAYBOOK so future-you doesn't re-ask the question.
