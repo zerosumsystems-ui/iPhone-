@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 24 (structure flip-type breakdown — **only 8 % of structure flips are the intended spike → channel evolution**; 30 % are genuine cross-direction reversals but correlate with direction flips at only r = 0.14 — aggregate damping works)
+**Last updated:** 2026-04-19 · **Latest run:** increment 25 (direction-survival 2-D grid — **time-aware live gate** beats a single-threshold rule; the incr-23 "93 % at bar 20 / |strength| ≥ 0.15" number is really **81 %** at strict k=20 — the right gate changes with bar index)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr24.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr25.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,94 +32,109 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 24) — **only 8 %** of structure flips are benign spike → channel; **30 %** literally cross the bull/bear line, but aggregate damping eats them (r = 0.14 vs direction flips)
+## Most recent finding (incr 25) — when is live direction trustworthy? A **time-aware** gate beats any single-threshold rule
 
 ### The whole story in a picture
 
-![Structure flip categories](figures/structure_flip_categories.png)
+![Direction survival heatmap](figures/direction_survival_heatmap.png)
 
 ### The whole story in three sentences
 
-Incr 23 left this exact follow-up open: the live classifier's `structure` label flips 16× more often than `direction` (9.53 vs 0.58 per session); are those flips the benign Brooks spike → channel progression, or genuine reversals? **The incr-23 prose said "mostly intended evolution." That was wrong.** Re-reading the 9 425-row trajectory and classifying every one of the 1 905 flips, only **8.3 %** are intended_evolution (bull_spike → bull_channel or bear_spike → bear_channel). **30.2 % are cross_reversal** — the structure label actually crossed the bull/bear boundary. The end-of-day distribution (94 % in channels at bar 78) looked tidy, but the **path** through the session visits trading ranges and flips the bull/bear structure label a median of 3 times. The saving grace: cross_reversal correlates with actual direction flips at only **r = 0.144**, so the aggregator absorbs ~5 of every 6 structure-level reversals without flipping the headline direction.
+Incr 23 shipped a handy rule: "at bar 20, `|strength| ≥ 0.15` → **93 %** direction survival." That number is real but it's a **cumulative** average across bars 20-78 — most of the 93 % actually comes from late-session cells that are already at 94-100 %. At the strict single bar k=20, the same `|strength| ≥ 0.15` threshold only survives **81 %** of the time. Re-reading the 9 425-row trajectory at 2-D resolution (bar-bin × strength-bin) reveals a much cleaner picture: **the right live gate is time-aware** — it needs **more strength early** (|strength| ≥ 0.30 in bars 10-29), **less strength late** (|strength| ≥ 0.10 by bars 60-78). Below that schedule, the 78 % baseline is the best you can honestly claim.
 
-### What the five categories mean
+### The time-aware gate, in one table
 
-- **intended_evolution** (8.3 %, 158 flips) — `bull_spike → bull_channel` or `bear_spike → bear_channel`. The Brooks canonical spike → channel progression. **80 % of these happen in bars 10-19** — right when the opening spike ends. This is the well-behaved category.
-- **cross_reversal** (30.2 %, 575 flips) — `bull_* → bear_*` or vice versa. Median 3 per session, p95 7 per session. Bimodal timing: 271 in bars 10-19 AND 94 in bars 60-78 (end-of-day chop).
-- **consolidation** (30.6 %, 582 flips) — any direction → `trading_range`. Momentum stalls.
-- **resumption** (29.5 %, 562 flips) — `trading_range` → any direction. Momentum returns. Roughly balanced with consolidation — sessions enter and leave ranges at similar rates.
-- **reverse_evolution** (1.5 %, 28 flips) — `bull_channel → bull_spike`. A re-energising within the same side. Rare.
+| bars | minimum `|strength|` | n obs | observed survival |
+|---|---:|---:|---:|
+| 10-29 | **0.30** | 118 | **98.3 %** |
+| 30-39 | **0.20** | 290 | **97.2 %** |
+| 40-59 | **0.15** | 726 | **95.9 %** |
+| 60-78 | **0.10** | 1 117 | **98.4 %** |
+| baseline (any dir, any strength) | — | 7 264 | **78.2 %** |
 
-### When each category fires
+**Footprint of the gate:** 2 251 of 7 264 directional observations (**31 %**) pass. Combined survival across the passing cells: **97.4 %**. The other 69 % still match the close 78 % of the time — that's the baseline — but they don't earn the "confirmed" badge.
 
-![When each category fires](figures/structure_flip_timing.png)
+### The threshold curve (in one picture)
 
-intended_evolution is front-loaded in bars 10-19 — exactly as Brooks' model predicts. cross_reversal / consolidation / resumption are heavy at the open AND heavy at end-of-day, with a quieter middle. The end-of-day chop is the noteworthy pattern: by bar 60, aggregate direction has usually committed with enough strength that structure-level cross-reversals don't propagate — but they're there.
+![Live-gate threshold curve](figures/direction_survival_threshold.png)
 
-### Does structure cross-reversal track direction flips? Mostly no.
+Flat at 0.30 through bars 10-29 — that's the aggregator-still-warming-up zone, and the honest posture is "stay silent unless the magnitude is emphatic." Drops sharply at bar 30 (handoff point) and keeps falling. By bar 60 even a weak 0.10 reading survives the close at 98 %.
 
-![cross_reversal vs direction flips](figures/structure_flip_vs_direction_flip.png)
+### Where the data lives (observation counts)
 
-Pearson r = **0.144** (n = 200). Most sessions sit on the y = 0 line — lots of structure cross-reversals, zero direction flips. This is the **aggregator working as designed**: twelve contributors vote, and it takes more than a single-family flicker to move the mean past the ±0.05 direction threshold.
+![Observation counts per cell](figures/direction_survival_counts.png)
 
-### Where each structure goes next
-
-![Transition matrix](figures/structure_transition_matrix.png)
-
-Trading_range is the single most-visited next state from every channel/spike label — it's the session's "rest room." Diagonals blank by construction (same label isn't a flip).
+Heaviest density is `|strength|` 0.05-0.15 (where the aggregator lives most of the time) and bar range 30-59. The `|strength| ≥ 0.30` columns are sparse, which is why the per-k threshold routine skips cells with n < 20 — that avoids declaring "100 % survival" on 4 lucky observations.
 
 ### What this means for live consumption
 
-- **Latch behaviour** — if the front-end ever shows a "trend confirmed" ribbon, it must latch on **direction** (rare flips, known bimodal timing). Don't tie latching to structure — structure literally crosses the bull/bear line 3 times a session on average.
-- **Narrative output** — when we tell the trader "session structure is bull_channel", present it as an instantaneous label, maybe with a small "how long has this label held" indicator. Do not summarise structure with a stability or confidence number.
-- **No new production recommendation.** The incr-23 rule ("high-confidence live direction iff |strength| ≥ 0.15 AND bar ≥ 20") is reinforced by this pass — gate on direction, not structure.
+- **Right framing for the confirmed-direction ribbon:** it's not "direction AND |strength| ≥ X" — it's a **function of bar index**. 30 / 0.20 / 0.15 / 0.10 across the four bar-bins above.
+- **Honest baseline:** 78 % of directional reads are right at the close anyway. A badge only earns its keep when it beats that meaningfully (90 %+ here).
+- **No production change yet.** The candidate `is_direction_confirmed(bar_k, strength_abs)` rule is proposed, not wired. Needs Will's nod.
 
 ### Correction to incr 23
 
-Incr 23 prose said "most structure flips are intended Brooks spike → channel evolution, not random flicker." The correct claim is: **the end-of-day distribution is tidy; the path there is not.** 92 % of flips are something other than intended_evolution. Incr 24's note (linked below) records the correction explicitly.
+Incr 23's "`|strength| ≥ 0.15` at bar 20 → **93 %** direction survival" number is correct *as a cumulative statistic across bars ≥ 20* but misleading as a live-gate rule at bar 20. Strict single-bar k=20 at `|strength| ≥ 0.15` is **81 %** (n=75). The cumulative number inherits from bars ≥ 40 where the rate is 94-100 %. Use the incr-25 time-aware schedule for any actual live gate.
 
 ### For the engineers: the numbers
 
 <details>
 <summary>Click to expand the technical view</summary>
 
-**Source:** `realtime_stability_stratified_incr23_traj.csv` — 9 425 bar-by-bar rows across 200 real RTH sessions × up to 68 progressive calls, warmup k=10. Pure read-only analysis. No production code touched.
+**Source:** `realtime_stability_stratified_incr23_traj.csv` — 9 425 bar-by-bar rows across 200 real RTH sessions × 193 symbols × warmup k=10 → up to k=68 progressive calls. Pure read-only re-analysis. No production code touched.
 
-**Category breakdown:**
+**Cell grid** (rate / n, cells with n < 5 blanked):
 
-| category | count | pct |
-|---|---:|---:|
-| intended_evolution | 158 | **8.3 %** |
-| reverse_evolution | 28 | 1.5 % |
-| consolidation | 582 | 30.6 % |
-| resumption | 562 | 29.5 % |
-| **cross_reversal** | **575** | **30.2 %** |
-| other (safety net) | 0 | 0.0 % |
-| **total** | **1 905** | |
+| k \ `|strength|` | .05-.10 | .10-.15 | .15-.20 | .20-.30 | .30-.50 |
+|---|---:|---:|---:|---:|---:|
+| 10-14 | 0.45 / 203 | 0.63 / 175 | 0.69 / 162 | 0.79 / 118 | **0.96 / 28** |
+| 15-19 | 0.48 / 216 | 0.64 / 181 | 0.78 / 170 | 0.82 / 132 | **0.97 / 30** |
+| 20-24 | 0.64 / 197 | 0.68 / 198 | 0.68 / 171 | 0.87 / 121 | **1.00 / 28** |
+| 25-29 | 0.59 / 229 | 0.65 / 200 | 0.72 / 127 | 0.86 / 116 | **1.00 / 32** |
+| 30-39 | 0.64 / 383 | 0.73 / 400 | 0.79 / 296 | **0.97 / 224** | **1.00 / 66** |
+| 40-59 | 0.71 / 327 | 0.81 / 523 | **0.94 / 378** | **0.98 / 280** | **1.00 / 68** |
+| 60-78 | 0.69 / 359 | **0.96 / 423** | **0.99 / 369** | **1.00 / 284** | **1.00 / 41** |
 
-**Timing (flips per 10-bar bucket):**
+Bold = passes the ≥ 0.90 survival bar.
 
-| category | 10-19 | 20-29 | 30-39 | 40-49 | 50-59 | 60-78 |
-|---|---:|---:|---:|---:|---:|---:|
-| intended_evolution | **126** | 7 | 12 | 7 | 2 | 4 |
-| cross_reversal | 271 | 81 | 76 | 17 | 36 | **94** |
-| consolidation | 185 | 103 | 106 | 21 | 46 | 121 |
-| resumption | 167 | 101 | 113 | 24 | 47 | 110 |
+**Candidate gate** (for engineering reference only; not wired):
 
-**Per-session cross_reversal vs direction flips:** Pearson r = **0.144**. Median cross_reversals / session = 3. Median direction flips / session = 0 (from incr 23). Roughly 5 structure-level cross-reversals per 1 direction flip.
+```python
+def is_direction_confirmed(bar_k: int, strength_abs: float) -> bool:
+    if bar_k < 10: return False
+    if bar_k <= 29: return strength_abs >= 0.30
+    if bar_k <= 39: return strength_abs >= 0.20
+    if bar_k <= 59: return strength_abs >= 0.15
+    return strength_abs >= 0.10
+```
 
-**Classifier tool:** `~/code/aiedge/scanner/tools/structure_flip_types_incr24.py`.
-**Artifacts:** `structure_flip_breakdown_incr24.csv`, `structure_flip_category_counts_incr24.csv`, `structure_transition_matrix_incr24.csv`, `structure_flip_timing_incr24.csv`, `structure_flip_per_session_incr24.csv`, `structure_flip_types_incr24.json`.
+**Classifier tool:** `~/code/aiedge/scanner/tools/direction_survival_incr25.py`.
+**Artifacts:** `direction_survival_incr25.csv`, `direction_survival_incr25_threshold.csv`, `direction_survival_incr25.json`.
 
 **Mistakes avoided:**
-1. Didn't re-run the progressive-k sweep — reused the 9 425-row trajectory CSV.
-2. Didn't claim cross_reversal = direction flip. r = 0.144.
-3. Didn't propose any production change.
-4. Corrected incr 23's prose rather than hiding the contradiction.
+1. Didn't treat the incr-23 headline as a ready-to-ship gate — verified at the resolution the rule would actually fire at.
+2. Didn't re-run the progressive-k sweep — reused the 9 425-row trajectory CSV.
+3. Didn't tune off noisy cells (n < 20 skipped; monotone check enforced).
+4. Didn't over-sell the gate's coverage (31 % accept rate is by design).
 
 </details>
 
-## Previous finding (incr 23) — real-time gate: `|strength| ≥ 0.15 at bar 20` ⇒ **93 %** direction-survival
+## Previous finding (incr 24) — **only 8 %** of structure flips are benign spike → channel; **30 %** literally cross the bull/bear line, but aggregate damping eats them (r = 0.14 vs direction flips)
+
+<details>
+<summary>Expand — structure flip-type breakdown, timing, transition matrix</summary>
+
+![Structure flip categories](figures/structure_flip_categories.png)
+
+Incr 23 left this exact follow-up open: the live classifier's `structure` label flips 16× more often than `direction` (9.53 vs 0.58 per session); are those flips the benign Brooks spike → channel progression, or genuine reversals? **The incr-23 prose said "mostly intended evolution." That was wrong.** Re-reading the 9 425-row trajectory and classifying every one of the 1 905 flips, only **8.3 %** are intended_evolution. **30.2 %** are cross_reversal (bull_* ↔ bear_*). **30.6 %** consolidation, **29.5 %** resumption, **1.5 %** reverse_evolution. cross_reversal ↔ direction flips Pearson r = **0.144** — aggregate damping absorbs ~5 of every 6 structure-level reversals without flipping the headline direction. Full breakdown: [pdfs/trend-research-2026-04-19-incr24.pdf](pdfs/trend-research-2026-04-19-incr24.pdf).
+
+![When each category fires](figures/structure_flip_timing.png)
+![cross_reversal vs direction flips](figures/structure_flip_vs_direction_flip.png)
+![Transition matrix](figures/structure_transition_matrix.png)
+
+</details>
+
+## Previous finding (incr 23) — real-time gate: `|strength| ≥ 0.15 at bar 20` ⇒ **93 %** direction-survival *(cumulative — see incr 25 for strict-bar correction)*
 
 <details>
 <summary>Expand — bimodal flip timing, strength gate, structure trajectory</summary>
@@ -299,8 +314,9 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **NEW (incr 24)** — no new code recommendation. The pass sharpens existing rules: latch on direction, treat structure as an instantaneous label with no stability semantics. The incr-23 strength-gate rule is reinforced.
-2. **STILL PENDING (incr 23)** — optional dashboard consumer rule: display "high-confidence live direction" when `|strength| ≥ 0.15` AND bar count ≥ 20. Zero change to `compute_trend_state`, scoring, or ranking. Relevant only if/when the front-end `TrendState` panel lands.
+1. **NEW (incr 25)** — wire `trendState.directionConfirmed` into the live payload as a boolean, using the **time-aware** threshold schedule (bars 10-29 → 0.30, 30-39 → 0.20, 40-59 → 0.15, 60+ → 0.10). Additive only, zero ranking impact. Dashboard renders a small "confirmed" ribbon when true. Supersedes the simpler incr-23 single-threshold rule.
+2. **STILL PENDING (incr 24)** — no new code recommendation. Latch on direction, treat structure as an instantaneous label with no stability semantics.
+3. **SUPERSEDED BY INCR 25 (incr 23)** — the `|strength| ≥ 0.15 at bar ≥ 20` rule is legitimate as a cumulative read but not as a live gate. Incr 25's schedule replaces it for any actual gating implementation.
 3. **STILL PENDING (incr 22)** — no new threshold recommendations from the stability run.
 3. **STILL PENDING (incr 21):** loosen `OPEN_EXTREME_THRESHOLD: 0.15 → 0.25` in `aiedge/context/daytype.py::_classify_day_type` (currently a magic literal). Gains +3 pp TFO fire rate with zero accuracy cost. Lowest-risk of the pending items.
 4. **STILL PENDING (incr 20):** change `ALWAYS_IN_WINDOW: 5 → 10` in `aiedge/context/trend.py` and mirror `STRONG_TREND_WINDOW` in `aiedge/signals/components.py`. Re-baseline `TrendStateAlwaysInContributor` replay tests.
@@ -314,9 +330,12 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 12. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
 13. **Multi-month sample.** 10-day cache is fine for stability (clean signal) but multi-month would confirm 63 % zero-flip isn't window-specific.
 
-## All figures (40)
+## All figures (43)
 
-- [structure_flip_categories.png](figures/structure_flip_categories.png) — incr 24 flip-category breakdown (8 % intended, 30 % cross-reversal) *(NEW)*
+- [direction_survival_heatmap.png](figures/direction_survival_heatmap.png) — incr 25 2-D survival grid (bar × |strength|) *(NEW)*
+- [direction_survival_threshold.png](figures/direction_survival_threshold.png) — incr 25 per-k minimum `|strength|` for 90 / 95 % survival *(NEW)*
+- [direction_survival_counts.png](figures/direction_survival_counts.png) — incr 25 observation density per cell *(NEW)*
+- [structure_flip_categories.png](figures/structure_flip_categories.png) — incr 24 flip-category breakdown (8 % intended, 30 % cross-reversal)
 - [structure_flip_timing.png](figures/structure_flip_timing.png) — incr 24 stacked timing by category *(NEW)*
 - [structure_transition_matrix.png](figures/structure_transition_matrix.png) — incr 24 row-normalised 5×5 transition heatmap *(NEW)*
 - [structure_flip_vs_direction_flip.png](figures/structure_flip_vs_direction_flip.png) — incr 24 cross_reversal vs direction flips scatter *(NEW)*
@@ -359,7 +378,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md](notes/trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md) — most recent run, structure flip-type breakdown *(NEW)*
+- [trend-contributor-findings-2026-04-19-incr25-direction-survival.md](notes/trend-contributor-findings-2026-04-19-incr25-direction-survival.md) — most recent run, direction-survival 2-D grid *(NEW)*
+- [trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md](notes/trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md) — structure flip-type breakdown
 - [trend-contributor-findings-2026-04-19-incr23-flip-timing.md](notes/trend-contributor-findings-2026-04-19-incr23-flip-timing.md) — incr 23 flip timing + strength gate + structure trajectory
 - [trend-contributor-findings-2026-04-19-incr22-realtime-stability.md](notes/trend-contributor-findings-2026-04-19-incr22-realtime-stability.md) — real-time stability
 - [trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md](notes/trend-contributor-findings-2026-04-19-incr21-day-type-sweep.md) — `day_type` TFO-gate sweep
@@ -381,6 +401,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 25** (2026-04-19) — direction-survival 2-D grid. Pure read-only re-analysis of the 9 425-row trajectory from incr 23. Binned every one of the 7 264 directional observations by (bar-k × `|strength|`) and computed P(live direction = session-close direction) per cell. Clean time-aware live-gate schedule falls out: bars 10-29 need `|strength| ≥ 0.30`, 30-39 need ≥ 0.20, 40-59 need ≥ 0.15, 60-78 need ≥ 0.10. Running that schedule accepts **31 %** of directional reads at combined **97.4 %** survival. **Retroactively corrects incr 23** — the "93 % at bar 20 / |strength| ≥ 0.15" number is a cumulative read across bars ≥ 20 (which inherits from late-session 94-100 % cells); strict single-bar k=20 at the same threshold is only **81 %**. **No production code change.** Candidate `trendState.directionConfirmed` boolean needs Will's nod to wire.
 - **incr 24** (2026-04-19) — structure flip-type breakdown. Pure read-only re-analysis of the 9 425-row trajectory persisted by incr 23. Classified all 1 905 structure flips: **8.3 % intended_evolution** (bull_spike → bull_channel, bear_spike → bear_channel — 80 % of these in bars 10-19). **30.2 % cross_reversal** (bull_* ↔ bear_*, bimodal timing: open + end-of-day). **30.6 % consolidation** (→ trading_range). **29.5 % resumption** (trading_range →). **1.5 % reverse_evolution** (channel → spike, same side). cross_reversal ↔ direction flips Pearson r = **0.144** — aggregate damping absorbs most structure-level reversals. **Corrects incr 23 prose** ("mostly intended evolution" was wrong — end-of-day distribution is tidy, path is not). Zero production code change. Reinforces the incr 23 front-end rule: gate on direction, not structure.
 - **incr 23** (2026-04-19) — stratified real-time stability: flip timing, strength-as-predictor, structure trajectory. 200 RTH sessions, 12 129 per-bar trajectory rows. **64 % of all 116 direction flips fall in bars 15-39** (bimodal peaks at 15-19 and 30-39). **|strength| ≥ 0.15 at bar 20 ⇒ 93 % direction-survival** (vs 47 % baseline), 85 % zero-flip rate (vs 46 %), median lock-in bar 10 (vs 18). `TrendState.structure` is 16× noisier than direction (1 905 vs 116 flips) but most movement is intended spike → channel evolution. Reproduced incr 22 stability: 0.58 mean direction flips / session vs 0.56. **One optional dashboard consumer rule.** No production change.
 - **incr 22** (2026-04-19) — real-time stability of `compute_trend_state`. First run to grade the classifier **live** (progressive bar-by-bar calls) rather than on closed sessions. 300 RTH sessions × up to 68 calls each ≈ 20k `compute_trend_state` calls. **63.3 % of directional sessions have zero direction flips**; mean 0.56, max 5. Median lock-in bar = 11, mean = 19.5. 70 % of sessions lock in by bar 20, 93 % by bar 40. Per-bar convergence to final direction: 50 % at bar 10, 75 % at bar 36, 90 % at bar 75. **Conclusion: TrendState is safe to wire into front-end live consumption.** No production change.
