@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-20 · **Latest run:** increment 28 (forward-return validation of the live gate on ES — **direction-survival measured label persistence; this measures whether the gate moves price**. Headline: gate produces **+0.09R at 10-bar horizon (57.1% hit) vs +0.04R baseline (50.3%)** on 968 gated reads / 4,887 directional observations across 101 ES.c.0 RTH sessions. Edge grows monotonically through 20 bars, then **collapses to −0.10R at end of session**. The gate is a genuine momentum signal for ~25–100 minute holds; do **not** hold to close.)
+**Last updated:** 2026-04-20 · **Latest run:** increment 29 (equity forward-return validation — **the EoD reversal is ES-specific**. Headline: on 120 US equity RTH sessions / 58 symbols / 4,478 directional reads, the equity gate `|s| ≥ 0.15 AND k ≥ 20` rises **monotonically** from +0.40R at 5b → +0.77R at 10b → +1.63R at 20b → **+1.71R at EoD** with 67 % hit rate at close — **no reversal cliff**. ES hump-shape does NOT generalise; the incr 28 "suppress gate at k ≥ 60" rule should NOT be applied to equities. Magnitude caveat: equity cache is scanner-biased, so **shape is portable, absolute R is not** without a representative re-sample.)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-20-incr28.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-20-incr29.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,71 +32,109 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 28) — **the live gate moves price, not just labels** — and the edge has a horizon
+## Most recent finding (incr 29) — **the EoD reversal is ES-specific; equity edge climbs monotonically to the close**
 
 ### The whole story in a picture
 
-![Forward-return validation — gate beats baseline at 5–20 bars, collapses at EoD](figures/forward_return_gate_vs_baseline.png)
+![Equity gate vs ES gate across 5b / 10b / 20b / EoD horizons — equity ramps, ES humps](figures/forward_return_eq_vs_es_horizon.png)
 
 ### The whole story in three sentences
 
-Every previous pass measured **direction survival** — the probability that the gate's label persists to end of session. That's a property of the CLASSIFIER. This pass measured what a trader actually banks: **the forward price return, signed by the gate's direction, normalised to per-session ATR (R)**. The gate produces **+0.09R at 10-bar horizon (57.1 % hit)** vs **+0.04R baseline (50.3 %)** — a real edge. But the edge **only exists at 5–20 bar horizons** (25–100 minutes); held to close, the gate flips to **−0.10R**. **Late-session mean reversion eats the directional move**, even when the label itself stays intact.
+Incr 28 showed the live gate on **ES futures** has a hump-shaped edge curve: +0.20R at 20 bars, then **−0.10R at end-of-session**. It left open whether that reversal is universal or asset-specific. This pass repeats the same analysis on **120 US equity RTH sessions / 58 symbols / 4,478 directional reads** from the scanner's 1-min cache — **and equities do NOT have the reversal**. The equity edge rises **monotonically** from +0.40R at 5b → +0.77R at 10b → +1.63R at 20b → **+1.71R at EoD**, with hit rate climbing 60 % → 63 % → 73 % and settling at **67 % at the close**. **The incr 28 "suppress gate at k ≥ 60" rule is ES-specific and should NOT be applied to equities.**
 
-### The four-horizon table (ES.c.0, 101 sessions, 4 887 directional reads, 968 gated)
+### The four-horizon table (US equities, 120 sessions / 58 symbols, gate `|s| ≥ 0.15 AND k ≥ 20`)
 
-| horizon | gate mean R | gate hit | baseline R | baseline hit | Δ |
+| horizon | gate n | mean R | hit rate | baseline R | baseline hit |
 |---|---:|---:|---:|---:|---:|
-| 5 bars (25 min) | **+0.062R** | **53.4 %** | +0.031R | 49.5 % | +0.032R |
-| 10 bars (50 min) | **+0.090R** | **57.1 %** | +0.039R | 50.3 % | +0.051R |
-| 20 bars (100 min) | **+0.198R** | **58.6 %** | +0.116R | 50.6 % | +0.082R |
-| End of session | **−0.103R** | **45.2 %** | +0.071R | 51.0 % | **−0.175R** |
+| 5 bars (25 min) | 1,605 | **+0.396R** | **60.1 %** | −0.030R | 48.1 % |
+| 10 bars (50 min) | 1,418 | **+0.765R** | **63.3 %** | −0.057R | 47.9 % |
+| 20 bars (100 min) | 1,032 | **+1.628R** | **73.2 %** | −0.047R | 48.8 % |
+| **End of session** | 1,762 | **+1.708R** | **67.0 %** | −0.039R | 49.4 % |
 
-### Where the edge concentrates — by bar-k
+**ES incr 28 for comparison** (same gate knobs, same method, just futures data):
 
-![Gate value by bar-k bucket](figures/forward_return_by_k.png)
-
-| bar-k bucket | gate n | gate mean R (10b) |
+| horizon | ES gate mean R | ES hit |
 |---|---:|---:|
-| 10–14 | 79 | **+0.47R** (huge — opening read) |
-| 15–19 | 123 | +0.31R |
-| **20–29** | **263** | **+0.19R** (production gate's first valid window) |
-| 30–39 | 192 | +0.16R |
-| 40–59 | 280 | +0.10R |
-| **60–78** | **114** | **−0.27R** (late-session gate is anti-edge) |
+| 5b | +0.062R | 53.4 % |
+| 10b | +0.090R | 57.1 % |
+| 20b | +0.198R | 58.6 % |
+| **EoD** | **−0.103R** | **45.2 %** |
 
-**Within the production gate, edge tapers monotonically with bar-k.** At k=60–78 the gate is actively negative — late-session reads should be down-weighted or suppressed entirely.
+The two asset classes diverge at H=20b and stay diverged through the close. On equities the EoD window is the **strongest-expectancy** horizon, not the weakest.
 
-### |strength| ≥ 0.20 cliff confirmed by forward returns
+### The ES threshold travels — it's stricter and higher-expectancy on equities
 
-| `|strength|` bucket | n | mean R (10b) | hit |
+Applying the ES `|s| ≥ 0.20` knob unchanged to equities:
+
+| horizon | `\|s\|≥0.15` gate | `\|s\|≥0.20` gate |
+|---|---:|---:|
+| 10b | +0.77R (63.3 %) | **+0.88R (66.5 %)** |
+| 20b | +1.63R (73.2 %) | **+1.76R (78.3 %)** |
+| EoD | +1.71R (67.0 %) | **+2.10R (72.7 %)** |
+
+Stricter AND higher per-trade expectancy. So the open-loop question "does the ES knob work on equities" is **yes** — but the equity-native `|s| ≥ 0.15` threshold buys ~67 % more gated reads at materially similar hit rates.
+
+### Strength gradient on equities (H=10b)
+
+![Equity forward-R by |strength| bucket, stratified by horizon](figures/forward_return_eq_horizon_curve.png)
+
+| `|strength|` bucket | n | mean R (10b) | hit rate |
 |---|---:|---:|---:|
-| 0.05–0.10 | 1,213 | +0.12R | 49.1 % |
-| 0.10–0.15 | 1,057 | +0.06R | 54.5 % |
-| **0.15–0.20** | **846** | **−0.07R** | 53.2 % |
-| **0.20–0.30** | **792** | **+0.16R** | **58.2 %** |
-| 0.30–0.50 | 259 | +0.09R | 57.9 % |
+| 0.05–0.10 | 880 | +0.17R | 53.6 % |
+| 0.10–0.15 | 903 | +0.36R | 57.1 % |
+| 0.15–0.20 | 707 | +0.53R | 57.9 % |
+| 0.20–0.30 | 764 | +0.58R | 59.3 % |
+| 0.30–0.50 | 339 | +0.66R | 66.1 % |
 
-The **|s| 0.15–0.20 bucket is anti-edge** (−0.07R); the gate threshold jumps to **+0.16R at |s| 0.20–0.30**. Independent evidence the ES |s| ≥ 0.20 cut chosen by incr 26 is justified by **forward returns**, not just label persistence.
+Monotonic climb through 0.30–0.50 (66 % hit rate). The `|s| ≥ 0.15` cut is defensible by forward-R; below that, the 0.10–0.15 bucket is still positive but close to noise.
+
+### Edge by bar-k (equity)
+
+![Equity forward-R by bar-k bucket](figures/forward_return_eq_by_k.png)
+
+Every bar-k bucket is positive on equities. Late-session reads (k=60–78) are the **strongest** window, not the weakest — the mirror image of ES.
+
+### Why the magnitude differs (8–10× ES) — the honest caveat
+
+Equity gate mean R (+1.71R at EoD) is an order of magnitude larger than ES gate mean R (+0.20R at 20b). Two caveats:
+
+1. **Scanner-selection bias.** The equity 1-min cache is populated by the live scanner during trading hours — it mirrors "sessions the scanner engaged with," not the universe. Those are disproportionately volatile / momentum sessions.
+2. **Per-session ATR normalisation × low-priced stocks.** A handful of biotech / small-cap names have ATR < $0.01. Filtering to `atr ≥ 0.10` barely moves the mean (+1.628 → +1.622 at 20b), so outliers aren't driving it — but the corpus over-represents volatile names.
+
+**Bottom line: SHAPE is portable, MAGNITUDE is not** without a representative-universe re-sample (S&P 100 fixed-window Databento refetch).
 
 ### What this means for shipping a live gate
 
-- **Add expected R as a display field.** When the gate fires, show "expected +0.09R over next 50 min (historical)" as context. No ranking change.
-- **Suppress the gate at k ≥ 60** in any future live consumer. Late-session reads are anti-edge by 0.27R at H=10b — actively misleading.
-- **Treat the gate as a 25–100 minute momentum signal**, not a hold-to-close classifier. Exit at horizon.
+- **Don't apply a single "suppress at k ≥ 60" rule globally.** Defensible on ES; actively harmful on equities (where late-session is the strongest window).
+- **Asset-class strength split stays:** 0.15 equity / 0.20 ES (incr 26).
+- **NEW asset-class horizon guidance:** ES wants a 25–100 min holding window; equities tolerate hold-to-close (though a 20b exit captures ~95 % of the EoD expectancy at half the variance).
 
 ### Mistakes avoided this pass
 
-1. **Didn't conflate label persistence with profitability.** 90 % survival is a CLASSIFIER statistic; +0.09R at 10b is what the trader banks. Could have decoupled (stable-but-flat label yields zero R despite 100 % survival).
-2. **Didn't quote raw points.** ES per-session ATR varies 4× across the sample (3.86 → 12.84). Only ATR-normalised R is comparable across sessions.
-3. **Used the conservative entry assumption** (close[k-1], the last close IN the read). Understates real tradable edge by ~half a bar — the live consumer can fill at the next bar's open without slippage.
-4. **Random-sign baseline at matched k-distribution.** Cancels symbol drift (sign randomisation) and intraday timing-of-day effects (matched k). A naive "always long" baseline would conflate gate edge with ES drift.
-5. **Reported all four horizons.** The hump-shape only appears when 5/10/20/EoD are all visible. Reporting EoD alone would have shown the gate as net-negative — a false negative for the actual intended use case (intraday signal).
+1. **Didn't copy-paste the ES schedule onto equities.** Applying the incr 28 "suppress at k ≥ 60" rule unchanged would have erased the strongest equity window. Checked per-bar-k first.
+2. **Didn't treat mean as sufficient.** Mean (+1.63R) and median (+1.45R) at 20b are nearly identical; ATR-filter sanity check confirmed low-ATR biotech outliers aren't inflating the number.
+3. **Didn't report magnitudes without the selection-bias caveat.** Equity cache is NOT a random sample. Documented prominently.
+4. **Reported BOTH gates (|s|≥0.15 and |s|≥0.20).** Single-gate reports would have hidden that the stricter ES knob actually works on equities too.
+5. **Didn't conflate "edge grows to EoD" with "hold-to-close is the right strategy."** Per-trade variance at EoD is huge (P5 to P95: −5.6R to +9.5R); a 20b exit captures ~95 % of EoD expectancy at half the variance.
 
-### Edge by horizon × strength (extra context)
+---
 
-![Mean directed R by horizon stratified by |strength|](figures/forward_return_horizon_curve.png)
+## Previous finding (incr 28) — **the live gate moves price on ES, but the edge has a horizon**
 
-The two above-gate buckets (|s| 0.20–0.30 teal, |s| 0.30–0.50 green) sit cleanly above the |s|<0.20 buckets at H=10b/20b — strength is informative for forward returns, not just label persistence.
+<details>
+<summary>Expand — ES gate produces <strong>+0.09R at 10b / +0.20R at 20b / −0.10R at EoD</strong>; hold-to-close is anti-edge on ES</summary>
+
+![Forward-return validation — gate beats baseline at 5–20 bars, collapses at EoD](figures/forward_return_gate_vs_baseline.png)
+
+Every previous pass measured **direction survival** (a classifier statistic). This pass measured **ATR-normalised directed forward return (R)** — what a trader actually banks. On 101 ES.c.0 RTH sessions / 4,887 directional reads / 968 gated, the gate produces **+0.09R at 10-bar horizon (57.1 % hit)** vs +0.04R baseline (50.3 %). Edge grows monotonically through 20 bars (+0.20R), then **collapses to −0.10R at end of session**. Late-session gate (k=60–78) is **−0.27R at H=10b** — actively anti-edge on ES.
+
+**|s| ≥ 0.20 cliff confirmed by forward returns on ES**: |s| 0.15–0.20 bucket is −0.07R; |s| 0.20–0.30 jumps to +0.16R. Independent justification for the ES threshold from incr 26.
+
+**ES-side takeaways:** treat gate as a 25–100 min momentum signal, not hold-to-close; suppress at k ≥ 60 on ES (NOT equities — see incr 29).
+
+Full write-up: [pdfs/trend-research-2026-04-20-incr28.pdf](pdfs/trend-research-2026-04-20-incr28.pdf).
+
+</details>
 
 ---
 
@@ -521,6 +559,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 29** (2026-04-20) — equity forward-return validation. Repeats the incr 28 analysis on **120 US equity RTH sessions / 58 symbols / 4,478 directional reads** from the scanner's 1-min cache. `tools/forward_return_equity_incr29.py` (new, ~440 LOC). **Headline:** equities do NOT share the ES hump-shape. Gate `|s| ≥ 0.15 AND k ≥ 20` produces mean directed R of **+0.40R / +0.77R / +1.63R / +1.71R** at 5b/10b/20b/EoD (hit rates 60 % / 63 % / 73 % / 67 %) — **rises monotonically through EoD**. Random-sign baselines are −0.03R / −0.06R / −0.05R / −0.04R (all ~49 % hit). Stricter ES `|s| ≥ 0.20` knob ported to equities buys **+2.10R at EoD (73 % hit)** — higher per-trade, fewer reads. Strength gradient is monotonic on equities through 0.30–0.50 (+0.66R, 66 % hit). **Key correction to incr 28's portability claim: "suppress gate at k ≥ 60" is ES-specific and should NOT be applied to equities** — on equities, late-session is the strongest-expectancy window. Magnitude caveat: equity 1-min cache is scanner-biased (mirrors sessions the scanner engaged with, not universe); ATR-filter sanity check confirms low-ATR outliers aren't driving it but corpus over-represents volatile names. **Shape is portable; magnitude needs representative-universe refetch** (proposed: S&P 100 fixed-window Databento refetch). Five mistakes-to-avoid documented. **No production change.** PDF: [trend-research-2026-04-20-incr29.pdf](pdfs/trend-research-2026-04-20-incr29.pdf).
 - **incr 28** (2026-04-20) — forward-return validation of the live gate on ES futures. Pure addition: `tools/forward_return_incr28.py` re-fetches 101 ES.c.0 RTH sessions (Databento GLBX.MDP3, cache hit on incr 26), runs progressive `compute_trend_state` and computes ATR-normalised forward returns at 5/10/20-bar and EoD horizons. Gate fires on **968 / 4,887 (19.8%)** directional reads. **Headline:** mean directed R is **+0.062R / +0.090R / +0.198R / −0.103R** at horizons 5b/10b/20b/EoD (hit rates 53.4 % / 57.1 % / 58.6 % / 45.2 %). Random-sign baseline is **+0.031 / +0.039 / +0.116 / +0.071R** (hit rates 49.5 / 50.3 / 50.6 / 51.0 %). Edge is hump-shaped: grows monotonically through 20 bars, collapses to negative at end of session. Late-session gate (k=60–78) is **−0.27R** at H=10b — actively anti-edge. **|s| 0.20 cliff confirmed by forward returns**: |s| 0.15–0.20 bucket is −0.07R; |s| 0.20–0.30 jumps to +0.16R. The ES asset-class threshold from incr 26 is justified by both label persistence AND price movement. Practical takeaway: treat the gate as a **25–100 minute momentum signal**, not a hold-to-close classifier. Five mistakes-to-avoid documented. **No production change.** PDF: [trend-research-2026-04-20-incr28.pdf](pdfs/trend-research-2026-04-20-incr28.pdf).
 - **incr 27** (2026-04-19) — structure-redundancy study (read-only reanalysis of incr 23 + incr 26 trajectories, 200 equity + 101 ES sessions, 12,151 directional observations). Tested the hypothesis that adding a `structure ≠ spike` filter to the live gate would improve survival beyond the strength-only rule. **Negative result.** The +15 pp equity / +9 pp ES bucket gap is a composition artifact: **100 %** of spike directional obs land in bars 10-14, so `structure ≠ spike` and `k ≥ 15` select near-identical rows. After conditioning on `|strength| ≥ 0.15`, adding structure buys **+1.3 pp** on equity and **+0.2 pp** on ES. Adding it at `|s| ≥ 0.20` on ES is actively **−0.3 pp**. Recommendation: keep the incr-23 rule `|strength| ≥ 0.15 AND k ≥ 20`, with asset-class strength (0.15 equity / 0.20 ES); emit structure as display-only. No production change. Five mistakes-to-avoid documented; negative result saved us from shipping a redundant gate input.
 - **incr 26** (2026-04-19) — ES futures direction-survival calibration. Pulled **101 RTH sessions** of ES.c.0 1-min bars from Databento (GLBX.MDP3, 2025-11-20 → 2026-04-17, 140 134 raw bars), resampled to 5-min RTH and ran progressive `compute_trend_state` calls → **6 795 trajectory rows, 4 887 directional observations**. Built the same cell-aligned (bar-k × |strength|) 2-D grid as incr 25. **Headline finding:** the incr-25 equity schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**. ES baseline direction-survival is **70.3 %** vs equity **78.1 %** (−7.8 pp). **ES-specific schedule:** bars 15-39 → `|strength| ≥ 0.30`, 40-59 → `≥ 0.20`, 60-78 → `≥ 0.15` — 0.05-0.10 stricter than equity at every late band. Candidate gate passes ~20 % of observations at ~98 % survival. **No production change.** Answers "needs Will's nod" item #2 from incr 25. Durable trajectory CSV persisted for future reuse.
