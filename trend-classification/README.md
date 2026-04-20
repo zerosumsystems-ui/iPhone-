@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 25 (direction-survival 2-D grid — **time-aware live gate** beats a single-threshold rule; the incr-23 "93 % at bar 20 / |strength| ≥ 0.15" number is really **81 %** at strict k=20 — the right gate changes with bar index)
+**Last updated:** 2026-04-19 · **Latest run:** increment 26 (ES-futures direction-survival calibration — the **incr-25 equity gate is too lenient for ES**; ES needs `|strength| ≥ 0.30` all the way through bar 39, stricter by 0.05–0.10 at every late-session band)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr25.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr26.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,7 +32,57 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 25) — when is live direction trustworthy? A **time-aware** gate beats any single-threshold rule
+## Most recent finding (incr 26) — the incr-25 live gate does **NOT** travel to ES futures unchanged
+
+### The whole story in a picture
+
+![ES vs equity direction survival](figures/es_vs_equity_direction_survival.png)
+
+### The whole story in three sentences
+
+Incr 25 built a time-aware live-gate schedule on **200 equity sessions** and proposed it as the production direction-confirmation rule. Running the same cell-aligned 2-D grid on **101 ES.c.0 RTH sessions** (Databento GLBX.MDP3, 2025-11-20 → 2026-04-17, 4,887 directional observations) shows that schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / `|strength|` 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**. ES needs a **stricter** schedule: `|strength| ≥ 0.30` through bar 39, `≥ 0.20` in bars 40-59, `≥ 0.15` in bars 60-78 — 0.05-0.10 stricter than the equity schedule at every late band.
+
+### The stricter ES gate, in one table
+
+| bars  | ES incr-26 | equity incr-25 | delta   |
+|-------|-----------:|---------------:|--------:|
+| 15-39 | **0.30**   | 0.20-0.30      | **+0.10 at 30-39** |
+| 40-59 | **0.20**   | 0.15           | **+0.05** |
+| 60-78 | **0.15**   | 0.10           | **+0.05** |
+
+**ES baseline direction-survival (any non-'none' row):** 70.3 % — 7.8 pp noisier than the equity panel's 78.1 %. More headroom for the "confirmed" badge to earn its keep, but the floor is rougher too.
+
+### The threshold curves overlaid
+
+![ES-only threshold curve](figures/es_direction_survival_threshold.png)
+
+ES flattens at 0.30 through bar 39, then drops to 0.20, then 0.15 by end of session. Compare with the equity curve (incr 25, [figures/direction_survival_threshold.png](figures/direction_survival_threshold.png)) which dropped to 0.20 a full bar-bin earlier and all the way to 0.10 by bars 60-78.
+
+### The ES cell grid
+
+![ES direction-survival heatmap](figures/es_direction_survival_heatmap.png)
+
+### What this means for shipping a live gate
+
+- **Pick one of three options:** ship the ES-specific schedule, the equity-specific schedule, or a conservative `max(ES, equity)` that clears 90 % survival on both populations.
+- **For a mixed-panel dashboard** (equity scanner + ES chart), the `max()` schedule is the honest default. In practice max(ES, equity) = ES for every bar ≥ 15, so it's identical to the ES-specific schedule above the warmup cutoff.
+- **No production change yet.** The candidate `is_direction_confirmed_es` function is proposed, not wired.
+
+### Where the data lives (ES observation counts)
+
+![ES cell counts](figures/es_direction_survival_counts.png)
+
+### Mistakes avoided this pass
+
+1. **Didn't ship the equity schedule on ES without checking.** The cell-aligned comparison is what surfaced the 30-39 / 0.20-0.30 cell sitting at 88 % on ES (equities had it at 97 %).
+2. **Didn't average ES + equity into one grid.** Two populations with different baselines — averaging would erase the asymmetry.
+3. **Didn't include overnight Globex bars.** RTH mask applied before the resample — same cash-session contract as the aggregator.
+4. **Didn't exclude Databento's three "degraded" days.** A live reader saw the same degraded bars; the study reflects reality.
+5. **Didn't claim the thresholder is the production knob.** It's a decision-support tool; Will picks which schedule to ship.
+
+---
+
+## Previous finding (incr 25) — when is live direction trustworthy? A **time-aware** gate beats any single-threshold rule
 
 ### The whole story in a picture
 
@@ -314,7 +364,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## What's next — still needs your nod
 
-1. **NEW (incr 25)** — wire `trendState.directionConfirmed` into the live payload as a boolean, using the **time-aware** threshold schedule (bars 10-29 → 0.30, 30-39 → 0.20, 40-59 → 0.15, 60+ → 0.10). Additive only, zero ranking impact. Dashboard renders a small "confirmed" ribbon when true. Supersedes the simpler incr-23 single-threshold rule.
+1. **NEW (incr 26)** — pick which schedule to ship: ES-specific (bars 15-39 → 0.30, 40-59 → 0.20, 60+ → 0.15), equity-specific (incr 25 schedule), or conservative max(ES, equity). For mixed-panel dashboards the max() gate is the honest default. Supersedes the equity-only schedule from incr 25 as the preferred live-gate implementation.
+2. **CARRIED (incr 25)** — wire `trendState.directionConfirmed` into the live payload as a boolean. Additive only, zero ranking impact. Dashboard renders a small "confirmed" ribbon when true. Incr 26 supplies the ES-safe cutoff schedule.
 2. **STILL PENDING (incr 24)** — no new code recommendation. Latch on direction, treat structure as an instantaneous label with no stability semantics.
 3. **SUPERSEDED BY INCR 25 (incr 23)** — the `|strength| ≥ 0.15 at bar ≥ 20` rule is legitimate as a cumulative read but not as a live gate. Incr 25's schedule replaces it for any actual gating implementation.
 3. **STILL PENDING (incr 22)** — no new threshold recommendations from the stability run.
@@ -330,8 +381,12 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 12. **Pattern Lab DB backfill.** Without it, the WR-by-setup-type test from incr 16's roadmap stays blocked.
 13. **Multi-month sample.** 10-day cache is fine for stability (clean signal) but multi-month would confirm 63 % zero-flip isn't window-specific.
 
-## All figures (43)
+## All figures (47)
 
+- [es_vs_equity_direction_survival.png](figures/es_vs_equity_direction_survival.png) — incr 26 4-panel ES vs equity headline figure *(NEW)*
+- [es_direction_survival_heatmap.png](figures/es_direction_survival_heatmap.png) — incr 26 ES 2-D survival grid *(NEW)*
+- [es_direction_survival_threshold.png](figures/es_direction_survival_threshold.png) — incr 26 ES p90/p95 threshold curve *(NEW)*
+- [es_direction_survival_counts.png](figures/es_direction_survival_counts.png) — incr 26 ES cell counts *(NEW)*
 - [direction_survival_heatmap.png](figures/direction_survival_heatmap.png) — incr 25 2-D survival grid (bar × |strength|) *(NEW)*
 - [direction_survival_threshold.png](figures/direction_survival_threshold.png) — incr 25 per-k minimum `|strength|` for 90 / 95 % survival *(NEW)*
 - [direction_survival_counts.png](figures/direction_survival_counts.png) — incr 25 observation density per cell *(NEW)*
@@ -378,7 +433,8 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Long-form notes
 
-- [trend-contributor-findings-2026-04-19-incr25-direction-survival.md](notes/trend-contributor-findings-2026-04-19-incr25-direction-survival.md) — most recent run, direction-survival 2-D grid *(NEW)*
+- [trend-contributor-findings-2026-04-19-incr26-es-direction-survival.md](notes/trend-contributor-findings-2026-04-19-incr26-es-direction-survival.md) — most recent run, ES-vs-equity direction-survival calibration *(NEW)*
+- [trend-contributor-findings-2026-04-19-incr25-direction-survival.md](notes/trend-contributor-findings-2026-04-19-incr25-direction-survival.md) — direction-survival 2-D grid
 - [trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md](notes/trend-contributor-findings-2026-04-19-incr24-structure-flip-types.md) — structure flip-type breakdown
 - [trend-contributor-findings-2026-04-19-incr23-flip-timing.md](notes/trend-contributor-findings-2026-04-19-incr23-flip-timing.md) — incr 23 flip timing + strength gate + structure trajectory
 - [trend-contributor-findings-2026-04-19-incr22-realtime-stability.md](notes/trend-contributor-findings-2026-04-19-incr22-realtime-stability.md) — real-time stability
@@ -401,6 +457,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 26** (2026-04-19) — ES futures direction-survival calibration. Pulled **101 RTH sessions** of ES.c.0 1-min bars from Databento (GLBX.MDP3, 2025-11-20 → 2026-04-17, 140 134 raw bars), resampled to 5-min RTH and ran progressive `compute_trend_state` calls → **6 795 trajectory rows, 4 887 directional observations**. Built the same cell-aligned (bar-k × |strength|) 2-D grid as incr 25. **Headline finding:** the incr-25 equity schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**. ES baseline direction-survival is **70.3 %** vs equity **78.1 %** (−7.8 pp). **ES-specific schedule:** bars 15-39 → `|strength| ≥ 0.30`, 40-59 → `≥ 0.20`, 60-78 → `≥ 0.15` — 0.05-0.10 stricter than equity at every late band. Candidate gate passes ~20 % of observations at ~98 % survival. **No production change.** Answers "needs Will's nod" item #2 from incr 25. Durable trajectory CSV persisted for future reuse.
 - **incr 25** (2026-04-19) — direction-survival 2-D grid. Pure read-only re-analysis of the 9 425-row trajectory from incr 23. Binned every one of the 7 264 directional observations by (bar-k × `|strength|`) and computed P(live direction = session-close direction) per cell. Clean time-aware live-gate schedule falls out: bars 10-29 need `|strength| ≥ 0.30`, 30-39 need ≥ 0.20, 40-59 need ≥ 0.15, 60-78 need ≥ 0.10. Running that schedule accepts **31 %** of directional reads at combined **97.4 %** survival. **Retroactively corrects incr 23** — the "93 % at bar 20 / |strength| ≥ 0.15" number is a cumulative read across bars ≥ 20 (which inherits from late-session 94-100 % cells); strict single-bar k=20 at the same threshold is only **81 %**. **No production code change.** Candidate `trendState.directionConfirmed` boolean needs Will's nod to wire.
 - **incr 24** (2026-04-19) — structure flip-type breakdown. Pure read-only re-analysis of the 9 425-row trajectory persisted by incr 23. Classified all 1 905 structure flips: **8.3 % intended_evolution** (bull_spike → bull_channel, bear_spike → bear_channel — 80 % of these in bars 10-19). **30.2 % cross_reversal** (bull_* ↔ bear_*, bimodal timing: open + end-of-day). **30.6 % consolidation** (→ trading_range). **29.5 % resumption** (trading_range →). **1.5 % reverse_evolution** (channel → spike, same side). cross_reversal ↔ direction flips Pearson r = **0.144** — aggregate damping absorbs most structure-level reversals. **Corrects incr 23 prose** ("mostly intended evolution" was wrong — end-of-day distribution is tidy, path is not). Zero production code change. Reinforces the incr 23 front-end rule: gate on direction, not structure.
 - **incr 23** (2026-04-19) — stratified real-time stability: flip timing, strength-as-predictor, structure trajectory. 200 RTH sessions, 12 129 per-bar trajectory rows. **64 % of all 116 direction flips fall in bars 15-39** (bimodal peaks at 15-19 and 30-39). **|strength| ≥ 0.15 at bar 20 ⇒ 93 % direction-survival** (vs 47 % baseline), 85 % zero-flip rate (vs 46 %), median lock-in bar 10 (vs 18). `TrendState.structure` is 16× noisier than direction (1 905 vs 116 flips) but most movement is intended spike → channel evolution. Reproduced incr 22 stability: 0.58 mean direction flips / session vs 0.56. **One optional dashboard consumer rule.** No production change.
