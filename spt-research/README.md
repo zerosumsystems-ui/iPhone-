@@ -2,13 +2,101 @@
 
 Autonomous small-pullback-trend research notes, phone-readable. Long-form notes live in [`notes/`](notes/); phone-friendly PDFs in [`pdfs/`](pdfs/); the latest TL;DR is at the top of this README.
 
-> 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (33 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
+> 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every SPT note ever written (34 notes in reading order + the PLAYBOOK + the INDEX). Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Brooks%20PA/concepts).
 
-**Last updated:** 2026-04-19 evening · pt 33 + Monday-open watchlist
+**Last updated:** 2026-04-19 late · pt 34 — tier-graded candidates (A/B/C per TF)
 
 > 📅 **Monday 2026-04-20 open — actionable watchlist:** [notes/small-pullback-trend-monday-watchlist-2026-04-20.md](notes/small-pullback-trend-monday-watchlist-2026-04-20.md). One-table view + PLAYBOOK entry gates + cross-TF stars + gap-risk checklist. Start here before the 10:30 ET entry window.
 
-## Latest — pt 33: strongest-trend recommendations per timeframe
+## Latest — pt 34: tier-graded SPT candidates per timeframe
+
+**Run:** 2026-04-19 late, scheduled-task autonomous. Quality complement to pt 33: same 52×5 raw scan, re-graded into PLAYBOOK A/B/C tiers. Pt 33 ranked the *strongest* moves; pt 34 ranks the *cleanest*. Several pt 33 picks drop entirely (no daily/60m short candidates pass even C-gate); several quiet B-tier names get promoted (AVGO 3-TF, IWM, CAT, AAPL).
+
+Data: same source as pt 33 (`/tmp/spt_scan/raw.json`, Databento `XNAS.ITCH` through Fri 2026-04-17 cash close). Re-grader: `/tmp/spt_scan_pt34/tier.py`.
+
+## 🏆 Tier definitions
+
+| Tier | net_R | pullback | closeness | Read |
+|------|------:|---------:|----------:|------|
+| **A** | ≥2.0 | ≤0.40 | ≥0.75 | Brooks-canonical SPT — trade as-is |
+| **B** | ≥3.0 | ≤0.60 | ≥0.75 | Strong-clean — trade with size discipline |
+| **C** | ≥2.0 | ≤0.90 | ≥0.70 | Strong-extended — wait for next pullback, don't chase |
+
+## 🎯 Top picks per horizon — quality-graded
+
+| Horizon | Dir | Name | Tier | Why |
+|---------|:---:|------|:----:|-----|
+| Position (weeks) | 🟢 | **AVGO** | A | Daily A, closeness 0.99 — cleanest weekly long |
+| Position alt | 🟢 | **AMD** | A | Q49 resolved: continuation, not exhaustion |
+| Intraday swing | 🟢 | **MRK** | B×4 | Only 4-TF cross-star; B on every intraday TF |
+| Intraday hours (30m) | 🟢 | **MRK** | B | +9.84 netR / 0.48 pb — cleanest 30m large-cap |
+| Intraday scalp (5m) | 🟢 | **WMT** | B | +18.69 netR with pb discipline (0.43) |
+| Best short | 🔴 | **ADBE 15m** | **A** | Only A-tier short anywhere in the scan |
+| Cross-TF short | 🔴 | **CRM** | B×2 | Cleaner than ORCL after grading |
+
+**No daily or 60m short candidate at any tier.** Bear exposure is intraday-only this run.
+
+## 📊 Per-TF tier counts (long / short)
+
+| TF | A | B | C | Notes |
+|----|:-:|:-:|:-:|------|
+| daily | 4/0 | 4/0 | 8/0 | Bull breadth solid; no clean daily short anywhere |
+| 60m | 1/0 | 11/0 | 6/0 | SPY is the only A; 11 B-grade longs |
+| 30m | 0/0 | 9/0 | 7/1 | MRK B+9.84 netR is the cleanest 30m large-cap |
+| 15m | 0/**1** | 3/2 | 5/0 | **ADBE A-short — only A-tier short in scan** |
+| 5m | 0/0 | 5/2 | 3/3 | WMT +18.69 netR is the strongest single reading |
+
+## ⭐ Cross-timeframe quality stars (A or B on ≥2 TFs)
+
+| Symbol | TFs | Tiers | Star | vs pt 33 |
+|--------|-----|-------|:----:|:--------:|
+| **MRK** long | 60m·30m·15m·5m | B·B·B·B | ★★★★ | = |
+| **AVGO** long | daily·60m·30m | A·B·B | ★★★ | ⬆ NEW |
+| **CAT** long | daily·60m·30m | B·B·B | ★★★ | ⬆ NEW |
+| **DIS** long | 60m·30m·15m | B·B·B | ★★★ | = |
+| **UNH** long | 60m·30m·5m | B·B·B | ★★★ | ⬆ |
+| **IWM** long | daily·60m | B·B | ★★ | ⬆ NEW (small-caps) |
+| **DIA** long | daily·60m | B·B | ★★ | = |
+| **SPY** long | 60m·30m | A·B | ★★ | ⬆ |
+| **HD** long | 60m·30m | B·B | ★★ | = |
+| **AAPL** long | 60m·30m | B·B | ★★ | ⬆ NEW |
+| **QQQ** long | 60m·30m | B·B | ★★ | ⬆ |
+| **WMT** long | 15m·5m | B·B | ★★ | = |
+| **ADBE** short | 15m·5m | **A**·B | ★★ | = |
+| **CRM** short | 15m·5m | B·B | ★★ | = |
+
+## ⚠️ Pt 33 picks that DROP at quality grading
+
+- **Energy daily shorts** — CVX (pb 0.97), COP (pb 1.15), XOM (pb 1.59) all fail C-gate. Bounces inside the window are as large as the net move. Broken sectors with live counter-rallies, not clean SPT-shorts. **Do not enter short on these from current levels.**
+- **NFLX 60m short** — pb 0.98, fails. Same story.
+- **AMZN 15m short** — pb 1.03 (counter-bounce > net). Was already flagged as divergent vs daily long; tier grading confirms.
+- **GE 15m + 5m short, ORCL 5m short** — drop from A/B to C-tier on 5m. Magnitudes real but pullback discipline broke.
+
+## ✅ Q49 resolved — AMD: continuation, NOT exhaustion
+
+AMD's +36.9%/20d move passes A-gate cleanly: pullback 0.38, closeness 0.97, net_R +6.65. Aggregate stats are inconsistent with climactic-exit profile (which would show pb ≥0.50 with deteriorating closeness). Treat as continuation long, not tightening-stop fade. PLAYBOOK rule 5 stops still apply.
+
+## 📖 Tape read — quality-graded one-liner
+
+**Long-side: bull breadth is broader than pt 33 implied** — adding small-caps (IWM), industrials (CAT), and AAPL to the mega-cap tech leadership. **Short-side: there is no clean SPT-short on daily or 60m. The "energy short" and "NFLX broken" reads from pt 33 are real damage but live bounces — wait for fresh structure before shorting.** ADBE 15m is the single highest-quality short anywhere in the scan.
+
+## 🚫 Caveats
+
+- Same Friday 04-17 close cutoff as pt 33. Monday gaps invalidate, especially smaller TFs.
+- Universe is the same 52-name list — not expanded.
+- Tier B/C cutoffs are arbitrary midpoints; not yet validated against perR (Q50).
+
+## Follow-ups
+
+- **Q50** (new) — Tier × perR study. Does A-tier outperform B-tier outperform C-tier in actual SPT trades? If yes the gate is informative; if no the tier system is decorative.
+- **Q51** (new) — Sector tilt of B-tier longs (industrials + small-caps + defensives) — regime-shift signal or one-day artifact?
+- **Q47** carries — cross-TF SPT vs single-TF backtest, now with tier conditioning.
+
+Full vault note: [small-pullback-trend-tier-graded-candidates-2026-04-19.md](https://github.com/zerosumsystems-ui/aiedge-vault/blob/main/Brooks%20PA/concepts/small-pullback-trend-tier-graded-candidates-2026-04-19.md)
+
+---
+
+## Previous — pt 33: strongest-trend recommendations per timeframe
 
 **Run:** 2026-04-19 evening, scheduled-task autonomous. First operational SPT post — takes the 11-rule PLAYBOOK off paper and scans 52 symbols × 5 timeframes for the biggest, cleanest directional trends right now.
 
