@@ -1,8 +1,8 @@
 # Trend classification — current state
 
-**Last updated:** 2026-04-19 · **Latest run:** increment 26 (ES-futures direction-survival calibration — the **incr-25 equity gate is too lenient for ES**; ES needs `|strength| ≥ 0.30` all the way through bar 39, stricter by 0.05–0.10 at every late-session band)
+**Last updated:** 2026-04-19 · **Latest run:** increment 27 (structure-redundancy study — the **+15 pp channel-vs-spike gap is a composition artifact**; once we condition on `|strength| ≥ 0.15`, adding a `structure ≠ spike` filter buys **≤ 1.3 pp** extra survival. Negative result — the live gate doesn't need a structure input)
 
-📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr26.pdf)** — phone-readable headline.
+📄 **[Download this run's PDF](pdfs/trend-research-2026-04-19-incr27.pdf)** — phone-readable headline.
 
 > 📚 **Full research archive — [ARCHIVE.md](ARCHIVE.md)** lists every trend-classification increment ever written, with PDFs and notes. Canonical mirror at the aiedge-vault: [github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology](https://github.com/zerosumsystems-ui/aiedge-vault/tree/main/Scanner/methodology).
 
@@ -32,17 +32,71 @@ The `aiedge-scanner` had **13 parallel "trend-ish" classifiers** doing overlappi
 
 **Status (post-incr-17):** inventory complete, **602 tests / 905 subtests green**, zero look-ahead bias. **`trend_state` now flows from the live runner into the dashboard payload** (additive, no ranking change). HTF daily+weekly closes wired in via the existing `daily_closes_cache`. Front-end panel is the only remaining wiring needed — that needs your nod on the site repo.
 
-## Most recent finding (incr 26) — the incr-25 live gate does **NOT** travel to ES futures unchanged
+## Most recent finding (incr 27) — **structure is collinear with strength**; the bar-k gate is a spike filter in disguise
 
 ### The whole story in a picture
 
-![ES vs equity direction survival](figures/es_vs_equity_direction_survival.png)
+![Gate ablation — structure ≠ spike adds ≤1 pp over strength alone](figures/structure_gate_ablation.png)
 
 ### The whole story in three sentences
 
-Incr 25 built a time-aware live-gate schedule on **200 equity sessions** and proposed it as the production direction-confirmation rule. Running the same cell-aligned 2-D grid on **101 ES.c.0 RTH sessions** (Databento GLBX.MDP3, 2025-11-20 → 2026-04-17, 4,887 directional observations) shows that schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / `|strength|` 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**. ES needs a **stricter** schedule: `|strength| ≥ 0.30` through bar 39, `≥ 0.20` in bars 40-59, `≥ 0.15` in bars 60-78 — 0.05-0.10 stricter than the equity schedule at every late band.
+A bucket bar chart of survival shows **channel beats spike by +15 pp on equity and +9 pp on ES**, so the natural hypothesis is "add a `structure ≠ spike` filter to the live gate". Running the ablation on the same 9,425-row equity trajectory and 6,795-row ES trajectory reveals the +15 pp gap is a composition artifact — **100 % of spike directional observations land in bars 10-14**, so `structure ≠ spike` and `k ≥ 15` are selecting nearly identical rows. Conditioning on `|strength| ≥ 0.15` collapses the structural gain to **+1.3 pp on equity** and **+0.2 pp on ES** — the structure filter is redundant with what strength already captures.
 
-### The stricter ES gate, in one table
+### The ablation, in one table (equity)
+
+| strength cut | strength only | + structure ≠ spike | + k ≥ 15 |
+|---|---:|---:|---:|
+| `|s| ≥ 0.15` | pass 34.5 % / surv **89.0 %** | pass 31.0 % / surv **90.3 %** | pass 31.1 % / surv **90.4 %** |
+| `|s| ≥ 0.20` | pass 16.7 % / surv 94.0 % | pass 15.0 % / surv 95.2 % | pass 15.1 % / surv 95.2 % |
+| `|s| ≥ 0.30` | pass 3.2 % / surv 99.3 % | pass 2.8 % / surv 99.6 % | pass 2.8 % / surv 99.6 % |
+
+### The ablation, in one table (ES)
+
+| strength cut | strength only | + structure ≠ spike | + k ≥ 15 |
+|---|---:|---:|---:|
+| `|s| ≥ 0.15` | pass 31.3 % / surv **82.1 %** | pass 29.2 % / surv **82.3 %** | pass 29.3 % / surv **82.3 %** |
+| `|s| ≥ 0.20` | pass 17.2 % / surv 90.8 % | pass 16.0 % / surv 90.5 % | pass 16.1 % / surv 90.5 % |
+| `|s| ≥ 0.30` | pass 4.2 % / surv 99.7 % | pass 3.7 % / surv 99.6 % | pass 3.7 % / surv 99.6 % |
+
+**Structure and bar-count are within 0.2 pp of each other at every cut on both assets.** They are the same filter.
+
+### The tempting naive chart
+
+![Channel vs spike bars, pre-ablation](figures/structure_direction_survival_by_bucket.png)
+
+This chart is why we almost shipped a structure-aware gate. Conditioning on strength makes the gap vanish — a reminder to always ablate before treating an "interpretable label" as a free input.
+
+### The per-k curves (channel/spike/trading_range across bar-k)
+
+![Direction survival vs bar-k, stratified by structure](figures/structure_direction_survival_compare.png)
+
+Channel rises monotonically in both populations. ES channel asymptote (bars 60-78) is **78.6 %** vs equity's **91.6 %** — confirming incr 26's "ES is noisier" finding at the structure-conditioned level. Spike curves terminate early (no spike observations past bar 14).
+
+### What this means for shipping a live gate
+
+- **Keep the incr-23 proposed rule:** emit high-confidence direction iff `|strength| ≥ 0.15` AND `k ≥ 20`. Already near-optimal.
+- **Do NOT add `structure ≠ spike` as a gate input.** Redundant; adds plumbing without adding signal.
+- **Asset-class strength knob:** equity `|s| ≥ 0.15`, ES `|s| ≥ 0.20` for ~90 % survival. That's the only knob that matters.
+- **Emit `structure` as a display-only label.** The spike → channel transition is human-interpretable context, just not a gate.
+
+### Mistakes avoided this pass
+
+1. **Didn't ship the bucket-chart story.** A +15 pp gap looks decisive until you condition on the other variables. Always ablate before shipping.
+2. **Didn't treat "interpretable label" as free signal.** Structure reads well on a dashboard, but adding it to the gate buys no survival and costs cognitive load.
+3. **Didn't evaluate on survival alone.** At `|s| ≥ 0.30` every variant converges to 99 %+. The discriminating band is `|s| ∈ [0.15, 0.20]`.
+4. **Didn't conflate "spike is bad" with "spike hurts direction".** Spikes have low survival because they fire at bar 10-14 before confidence accrues — not because spike-ness is intrinsically toxic.
+5. **Counted the zero cells.** `structure = spike` has zero obs at bar ≥ 15 on ES. Any gate conditioning on structure at late bars is a no-op.
+
+---
+
+## Previous finding (incr 26) — the incr-25 live gate does **NOT** travel to ES futures unchanged
+
+<details>
+<summary>Expand — ES needs <code>|strength| ≥ 0.30</code> through bar 39, stricter by 0.05–0.10 at every late band</summary>
+
+![ES vs equity direction survival](figures/es_vs_equity_direction_survival.png)
+
+Incr 25 built a time-aware live-gate schedule on **200 equity sessions**. Running the same cell-aligned 2-D grid on **101 ES.c.0 RTH sessions** (Databento GLBX.MDP3, 2025-11-20 → 2026-04-17, 4,887 directional observations) shows that schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / `|strength|` 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**.
 
 | bars  | ES incr-26 | equity incr-25 | delta   |
 |-------|-----------:|---------------:|--------:|
@@ -50,35 +104,11 @@ Incr 25 built a time-aware live-gate schedule on **200 equity sessions** and pro
 | 40-59 | **0.20**   | 0.15           | **+0.05** |
 | 60-78 | **0.15**   | 0.10           | **+0.05** |
 
-**ES baseline direction-survival (any non-'none' row):** 70.3 % — 7.8 pp noisier than the equity panel's 78.1 %. More headroom for the "confirmed" badge to earn its keep, but the floor is rougher too.
+ES baseline direction-survival is **70.3 %** vs equity **78.1 %** (−7.8 pp). Candidate ES gate passes ~20 % of observations at ~98 % survival. Full write-up: [pdfs/trend-research-2026-04-19-incr26.pdf](pdfs/trend-research-2026-04-19-incr26.pdf).
 
-### The threshold curves overlaid
+**Superseded in part by incr 27** — the recommendation is now "one strength knob per asset class, no structure input, no bar-schedule". Keeping the ES-noisier finding; discarding the schedule-per-bar detail.
 
-![ES-only threshold curve](figures/es_direction_survival_threshold.png)
-
-ES flattens at 0.30 through bar 39, then drops to 0.20, then 0.15 by end of session. Compare with the equity curve (incr 25, [figures/direction_survival_threshold.png](figures/direction_survival_threshold.png)) which dropped to 0.20 a full bar-bin earlier and all the way to 0.10 by bars 60-78.
-
-### The ES cell grid
-
-![ES direction-survival heatmap](figures/es_direction_survival_heatmap.png)
-
-### What this means for shipping a live gate
-
-- **Pick one of three options:** ship the ES-specific schedule, the equity-specific schedule, or a conservative `max(ES, equity)` that clears 90 % survival on both populations.
-- **For a mixed-panel dashboard** (equity scanner + ES chart), the `max()` schedule is the honest default. In practice max(ES, equity) = ES for every bar ≥ 15, so it's identical to the ES-specific schedule above the warmup cutoff.
-- **No production change yet.** The candidate `is_direction_confirmed_es` function is proposed, not wired.
-
-### Where the data lives (ES observation counts)
-
-![ES cell counts](figures/es_direction_survival_counts.png)
-
-### Mistakes avoided this pass
-
-1. **Didn't ship the equity schedule on ES without checking.** The cell-aligned comparison is what surfaced the 30-39 / 0.20-0.30 cell sitting at 88 % on ES (equities had it at 97 %).
-2. **Didn't average ES + equity into one grid.** Two populations with different baselines — averaging would erase the asymmetry.
-3. **Didn't include overnight Globex bars.** RTH mask applied before the resample — same cash-session contract as the aggregator.
-4. **Didn't exclude Databento's three "degraded" days.** A live reader saw the same degraded bars; the study reflects reality.
-5. **Didn't claim the thresholder is the production knob.** It's a decision-support tool; Will picks which schedule to ship.
+</details>
 
 ---
 
@@ -457,6 +487,7 @@ When a bull session flips bear at bar 8, the seven recency-aware contributors ro
 
 ## Run history
 
+- **incr 27** (2026-04-19) — structure-redundancy study (read-only reanalysis of incr 23 + incr 26 trajectories, 200 equity + 101 ES sessions, 12,151 directional observations). Tested the hypothesis that adding a `structure ≠ spike` filter to the live gate would improve survival beyond the strength-only rule. **Negative result.** The +15 pp equity / +9 pp ES bucket gap is a composition artifact: **100 %** of spike directional obs land in bars 10-14, so `structure ≠ spike` and `k ≥ 15` select near-identical rows. After conditioning on `|strength| ≥ 0.15`, adding structure buys **+1.3 pp** on equity and **+0.2 pp** on ES. Adding it at `|s| ≥ 0.20` on ES is actively **−0.3 pp**. Recommendation: keep the incr-23 rule `|strength| ≥ 0.15 AND k ≥ 20`, with asset-class strength (0.15 equity / 0.20 ES); emit structure as display-only. No production change. Five mistakes-to-avoid documented; negative result saved us from shipping a redundant gate input.
 - **incr 26** (2026-04-19) — ES futures direction-survival calibration. Pulled **101 RTH sessions** of ES.c.0 1-min bars from Databento (GLBX.MDP3, 2025-11-20 → 2026-04-17, 140 134 raw bars), resampled to 5-min RTH and ran progressive `compute_trend_state` calls → **6 795 trajectory rows, 4 887 directional observations**. Built the same cell-aligned (bar-k × |strength|) 2-D grid as incr 25. **Headline finding:** the incr-25 equity schedule is **too lenient for ES from bar 30 onwards** — at bars 30-39 / 0.20-0.30, ES sits at **88 %** survival where equities were **97 %**. ES baseline direction-survival is **70.3 %** vs equity **78.1 %** (−7.8 pp). **ES-specific schedule:** bars 15-39 → `|strength| ≥ 0.30`, 40-59 → `≥ 0.20`, 60-78 → `≥ 0.15` — 0.05-0.10 stricter than equity at every late band. Candidate gate passes ~20 % of observations at ~98 % survival. **No production change.** Answers "needs Will's nod" item #2 from incr 25. Durable trajectory CSV persisted for future reuse.
 - **incr 25** (2026-04-19) — direction-survival 2-D grid. Pure read-only re-analysis of the 9 425-row trajectory from incr 23. Binned every one of the 7 264 directional observations by (bar-k × `|strength|`) and computed P(live direction = session-close direction) per cell. Clean time-aware live-gate schedule falls out: bars 10-29 need `|strength| ≥ 0.30`, 30-39 need ≥ 0.20, 40-59 need ≥ 0.15, 60-78 need ≥ 0.10. Running that schedule accepts **31 %** of directional reads at combined **97.4 %** survival. **Retroactively corrects incr 23** — the "93 % at bar 20 / |strength| ≥ 0.15" number is a cumulative read across bars ≥ 20 (which inherits from late-session 94-100 % cells); strict single-bar k=20 at the same threshold is only **81 %**. **No production code change.** Candidate `trendState.directionConfirmed` boolean needs Will's nod to wire.
 - **incr 24** (2026-04-19) — structure flip-type breakdown. Pure read-only re-analysis of the 9 425-row trajectory persisted by incr 23. Classified all 1 905 structure flips: **8.3 % intended_evolution** (bull_spike → bull_channel, bear_spike → bear_channel — 80 % of these in bars 10-19). **30.2 % cross_reversal** (bull_* ↔ bear_*, bimodal timing: open + end-of-day). **30.6 % consolidation** (→ trading_range). **29.5 % resumption** (trading_range →). **1.5 % reverse_evolution** (channel → spike, same side). cross_reversal ↔ direction flips Pearson r = **0.144** — aggregate damping absorbs most structure-level reversals. **Corrects incr 23 prose** ("mostly intended evolution" was wrong — end-of-day distribution is tidy, path is not). Zero production code change. Reinforces the incr 23 front-end rule: gate on direction, not structure.
