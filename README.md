@@ -13,6 +13,7 @@ Phone-readable summaries of autonomous research runs. Each subject has its own f
 
 - **[trend-classification/](trend-classification/)** — unifying the 13 parallel trend classifiers in `aiedge-scanner` into one canonical `TrendState`. Inventory complete (12 of 12 contributors wired). **Latest:** increment 19 — contributor-degeneracy audit.
 - **[spt-research/](spt-research/)** — small-pullback-trend follow-up research arc. **Latest:** pt 31 — Brooks→aiedge transfer failure taxonomy; three consecutive NEGATIVE closes in pts 28/29/30 synthesized into Inversion/Rarity/Emptiness failure modes + a zero-compute vetting checklist.
+- **[rocket-league/](rocket-league/)** — 1000-MMR 3s progression guide: BakkesMod + Lethamyr ring-map setup, training-pack pointers, and a 4-week plan for air roll → ceiling reads → flip resets.
 
 ## How this repo gets updated
 
